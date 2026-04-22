@@ -28,9 +28,11 @@ export default function UsuariosPage() {
   const [authUsers, setAuthUsers] = useState<{id:string,email:string}[]>([])
   const [passNueva, setPassNueva] = useState('')
   const [passMsg, setPassMsg] = useState('')
+  const [formError, setFormError] = useState('')
 
   const [form, setForm] = useState({
-    nombre: '', apellido: '', email: '', rol_id: '', is_admin: false, activo: true
+    nombre: '', apellido: '', email: '', password_provisoria: '',
+    rol_id: '', is_admin: false, activo: true
   })
   const [enlaceEmail, setEnlaceEmail] = useState('')
   const [enlaceAuthId, setEnlaceAuthId] = useState('')
@@ -52,15 +54,17 @@ export default function UsuariosPage() {
 
   function openNuevo() {
     setEditando(null)
-    setForm({ nombre: '', apellido: '', email: '', rol_id: '', is_admin: false, activo: true })
+    setFormError('')
+    setForm({ nombre: '', apellido: '', email: '', password_provisoria: '', rol_id: '', is_admin: false, activo: true })
     setModalOpen(true)
   }
 
   function openEditar(u: Usuario) {
     setEditando(u)
+    setFormError('')
     setForm({
       nombre: u.nombre, apellido: u.apellido, email: u.email ?? '',
-      rol_id: u.rol_id ?? '', is_admin: u.is_admin, activo: u.activo
+      password_provisoria: '', rol_id: u.rol_id ?? '', is_admin: u.is_admin, activo: u.activo
     })
     setModalOpen(true)
   }
@@ -80,12 +84,26 @@ export default function UsuariosPage() {
   }
 
   async function handleSave() {
-    if (!form.nombre || !form.apellido) return
+    setFormError('')
+    if (!form.nombre || !form.apellido) { setFormError('Nombre y apellido son obligatorios'); return }
+    if (!editando && !form.email) { setFormError('El email es obligatorio para crear un usuario'); return }
+    if (!editando && !form.password_provisoria) { setFormError('La contraseña provisoria es obligatoria'); return }
+    if (!editando && form.password_provisoria.length < 6) { setFormError('La contraseña debe tener al menos 6 caracteres'); return }
+
     setSaving(true)
     const url = editando ? `/api/usuarios/${editando.id}` : '/api/usuarios'
     const method = editando ? 'PATCH' : 'POST'
-    await fetch(url, { method, headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, rol_id: form.rol_id || null }) })
+    const payload = editando
+      ? { nombre: form.nombre, apellido: form.apellido, rol_id: form.rol_id || null, is_admin: form.is_admin, activo: form.activo }
+      : { ...form, rol_id: form.rol_id || null }
+
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+    const data = await res.json()
+    if (!res.ok) {
+      setFormError(data.error ?? 'Error al guardar')
+      setSaving(false)
+      return
+    }
     await fetchAll()
     setModalOpen(false)
     setSaving(false)
@@ -111,12 +129,7 @@ export default function UsuariosPage() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ auth_user_id: editando.auth_user_id, password: passNueva })
     })
-    if (res.ok) {
-      setPassMsg('✓ Contraseña actualizada correctamente')
-    } else {
-      const d = await res.json()
-      setPassMsg(`Error: ${d.error}`)
-    }
+    setPassMsg(res.ok ? '✓ Contraseña actualizada' : 'Error al actualizar')
     setSaving(false)
   }
 
@@ -160,8 +173,8 @@ export default function UsuariosPage() {
 
       {sinEnlazar.length > 0 && (
         <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-          <p className="text-amber-800 text-sm font-medium mb-2">
-            {sinEnlazar.length} cuenta{sinEnlazar.length > 1 ? 's' : ''} de Google sin enlazar:
+          <p className="text-amber-800 text-sm font-medium mb-1">
+            {sinEnlazar.length} cuenta{sinEnlazar.length > 1 ? 's' : ''} sin enlazar a un usuario del sistema:
           </p>
           <div className="flex flex-wrap gap-2">
             {sinEnlazar.map(a => (
@@ -210,7 +223,7 @@ export default function UsuariosPage() {
                     </th>
                   ))}
                   <th className="px-4 py-3 text-xs font-semibold text-[#1B2A4A] uppercase">Estado</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-[#1B2A4A] uppercase">Google</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-[#1B2A4A] uppercase">Acceso</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
@@ -232,8 +245,8 @@ export default function UsuariosPage() {
                     </td>
                     <td className="px-4 py-3.5">
                       {u.auth_user_id
-                        ? <span className="text-xs text-green-600 flex items-center gap-1"><UserCheck size={13} />Enlazado</span>
-                        : <span className="text-xs text-amber-500 flex items-center gap-1"><UserX size={13} />Sin enlazar</span>}
+                        ? <span className="text-xs text-green-600 flex items-center gap-1"><UserCheck size={13} />Con acceso</span>
+                        : <span className="text-xs text-amber-500 flex items-center gap-1"><UserX size={13} />Sin acceso</span>}
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1 justify-end">
@@ -265,10 +278,13 @@ export default function UsuariosPage() {
         )}
       </div>
 
-      {/* Modal Usuario */}
+      {/* Modal Nuevo/Editar Usuario */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)}
         title={editando ? 'Editar Usuario' : 'Nuevo Usuario'}>
         <div className="space-y-4">
+          {formError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{formError}</div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <FormField label="Nombre" required>
               <Input value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
@@ -277,10 +293,23 @@ export default function UsuariosPage() {
               <Input value={form.apellido} onChange={e => setForm(f => ({ ...f, apellido: e.target.value }))} />
             </FormField>
           </div>
-          <FormField label="Email">
-            <Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-              placeholder="Se completa al enlazar con Google" />
-          </FormField>
+          {!editando && (
+            <>
+              <FormField label="Email" required>
+                <Input type="email" value={form.email}
+                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                  placeholder="email@ejemplo.com" />
+              </FormField>
+              <FormField label="Contraseña provisoria" required>
+                <Input type="text" value={form.password_provisoria}
+                  onChange={e => setForm(f => ({ ...f, password_provisoria: e.target.value }))}
+                  placeholder="Mínimo 6 caracteres — el usuario puede cambiarla" />
+              </FormField>
+              <div className="p-3 bg-[#EBF8FF] rounded-lg text-xs text-[#2B6CB0]">
+                El usuario podrá ingresar con este email y contraseña, y cambiarla desde su perfil.
+              </div>
+            </>
+          )}
           <FormField label="Rol">
             <Select value={form.rol_id} onChange={e => setForm(f => ({ ...f, rol_id: e.target.value }))}>
               <option value="">Sin rol</option>
@@ -306,12 +335,12 @@ export default function UsuariosPage() {
         </div>
       </Modal>
 
-      {/* Modal Enlace */}
+      {/* Modal Enlace Google */}
       <Modal open={enlaceModalOpen} onClose={() => setEnlaceModalOpen(false)}
         title="Enlazar con cuenta Google" size="sm">
         <div className="space-y-4">
           <p className="text-sm text-gray-500">
-            Seleccioná la cuenta de Google para <strong>{editando?.nombre} {editando?.apellido}</strong>
+            Enlazá una cuenta Google a <strong>{editando?.nombre} {editando?.apellido}</strong> para que pueda ingresar con Google además de su contraseña.
           </p>
           <FormField label="Cuenta Google">
             <Select value={enlaceAuthId} onChange={e => {
@@ -323,11 +352,6 @@ export default function UsuariosPage() {
               {authUsers.map(a => <option key={a.id} value={a.id}>{a.email}</option>)}
             </Select>
           </FormField>
-          {enlaceEmail && (
-            <div className="p-3 bg-[#EBF8FF] rounded-lg text-sm text-[#2B6CB0]">
-              Email: <strong>{enlaceEmail}</strong>
-            </div>
-          )}
           <div className="flex justify-end gap-3">
             <Btn variant="secondary" onClick={() => setEnlaceModalOpen(false)}>Cancelar</Btn>
             <Btn onClick={handleEnlace} loading={saving} disabled={!enlaceAuthId}>Enlazar</Btn>
@@ -335,13 +359,12 @@ export default function UsuariosPage() {
         </div>
       </Modal>
 
-      {/* Modal Contraseña */}
+      {/* Modal Cambiar Contraseña */}
       <Modal open={passModalOpen} onClose={() => setPassModalOpen(false)}
-        title="Establecer contraseña provisoria" size="sm">
+        title="Cambiar contraseña" size="sm">
         <div className="space-y-4">
           <p className="text-sm text-gray-500">
-            Asigná una contraseña provisoria a <strong>{editando?.nombre} {editando?.apellido}</strong>.
-            El usuario podrá cambiarla desde su perfil.
+            Nueva contraseña para <strong>{editando?.nombre} {editando?.apellido}</strong>
           </p>
           <FormField label="Nueva contraseña" required>
             <Input type="text" value={passNueva}
@@ -355,7 +378,7 @@ export default function UsuariosPage() {
           )}
           <div className="flex justify-end gap-3">
             <Btn variant="secondary" onClick={() => setPassModalOpen(false)}>Cerrar</Btn>
-            <Btn onClick={handleSetPass} loading={saving} disabled={!passNueva}>Guardar contraseña</Btn>
+            <Btn onClick={handleSetPass} loading={saving} disabled={!passNueva}>Guardar</Btn>
           </div>
         </div>
       </Modal>
