@@ -1,13 +1,17 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
-import { useSearchParams } from 'next/navigation'
-import { Suspense } from 'react'
-import Image from 'next/image'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { Suspense, useState } from 'react'
 
 function LoginContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const error = searchParams.get('error')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [loginError, setLoginError] = useState('')
 
   const errorMessages: Record<string, string> = {
     sin_acceso: 'Tu cuenta no tiene acceso al sistema. Contactá al administrador.',
@@ -19,10 +23,54 @@ function LoginContent() {
     const supabase = createClient()
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/api/auth/callback`,
-      },
+      options: { redirectTo: `${window.location.origin}/api/auth/callback` },
     })
+  }
+
+  async function handleEmailLogin(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setLoginError('')
+    const supabase = createClient()
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) {
+      setLoginError('Email o contraseña incorrectos')
+      setLoading(false)
+      return
+    }
+    // Verificar que el usuario existe en public.usuarios
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: usuarioApp } = await supabase
+        .from('usuarios')
+        .select('id, activo')
+        .eq('auth_user_id', user.id)
+        .single()
+      if (!usuarioApp) {
+        // Buscar por email y enlazar
+        const { data: porEmail } = await supabase
+          .from('usuarios')
+          .select('id, activo')
+          .eq('email', user.email!)
+          .single()
+        if (porEmail && porEmail.activo) {
+          router.push('/dashboard')
+          return
+        }
+        await supabase.auth.signOut()
+        setLoginError('Tu cuenta no tiene acceso al sistema.')
+        setLoading(false)
+        return
+      }
+      if (!usuarioApp.activo) {
+        await supabase.auth.signOut()
+        setLoginError('Tu cuenta está desactivada.')
+        setLoading(false)
+        return
+      }
+      router.push('/dashboard')
+    }
+    setLoading(false)
   }
 
   return (
@@ -30,32 +78,79 @@ function LoginContent() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center mb-10">
-          <div className="w-24 h-24 mb-6 flex items-center justify-center">
-            <svg viewBox="0 0 100 100" className="w-full h-full">
-              <circle cx="50" cy="50" r="48" fill="#1B2A4A" stroke="#C9A84C" strokeWidth="3"/>
-              <text x="50" y="45" textAnchor="middle" fill="#C9A84C" fontSize="10" fontWeight="bold">MINISTERIO</text>
-              <text x="50" y="57" textAnchor="middle" fill="#C9A84C" fontSize="10" fontWeight="bold">DE ECONOMÍA</text>
-              <text x="50" y="70" textAnchor="middle" fill="#C9A84C" fontSize="8">REP. ARGENTINA</text>
-            </svg>
-          </div>
+          <img
+            src="/logo.png"
+            alt="Ministerio de Economía"
+            className="w-24 h-24 mb-6 object-contain"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none'
+            }}
+          />
           <h1 className="text-3xl font-bold text-white tracking-tight">SIAP</h1>
-          <p className="text-[#C9A84C] text-sm mt-1 tracking-widest uppercase">Sistema de Seguimiento de Proyectos</p>
+          <p className="text-[#C9A84C] text-sm mt-1 tracking-widest uppercase">
+            Sistema de Seguimiento de Proyectos
+          </p>
         </div>
 
         {/* Card */}
         <div className="bg-white/5 backdrop-blur border border-white/10 rounded-2xl p-8">
-          <h2 className="text-white text-xl font-semibold mb-2">Iniciar sesión</h2>
-          <p className="text-white/50 text-sm mb-8">Usá tu cuenta institucional de Google para acceder</p>
+          <h2 className="text-white text-xl font-semibold mb-6">Iniciar sesión</h2>
 
-          {error && (
+          {(error || loginError) && (
             <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-              <p className="text-red-400 text-sm">{errorMessages[error] ?? 'Error desconocido'}</p>
+              <p className="text-red-400 text-sm">
+                {loginError || errorMessages[error!] || 'Error desconocido'}
+              </p>
             </div>
           )}
 
+          {/* Email/Password form */}
+          <form onSubmit={handleEmailLogin} className="space-y-4 mb-6">
+            <div>
+              <label className="block text-white/60 text-sm mb-1.5">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="tu@email.com"
+                required
+                className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#C9A84C] transition-colors text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-white/60 text-sm mb-1.5">Contraseña</label>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#C9A84C] transition-colors text-sm"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#C9A84C] hover:bg-[#b8963e] disabled:opacity-50 text-[#1B2A4A] font-semibold py-3 px-4 rounded-xl transition-all duration-200"
+            >
+              {loading ? 'Ingresando...' : 'Ingresar'}
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-white/10" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="px-2 bg-transparent text-white/30">o continuá con</span>
+            </div>
+          </div>
+
+          {/* Google */}
           <button
             onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-gray-800 font-medium py-3 px-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-gray-800 font-medium py-3 px-4 rounded-xl transition-all duration-200"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
