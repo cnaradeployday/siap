@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, Pencil, Link, Search, UserCheck, UserX } from 'lucide-react'
+import { Plus, Pencil, Link, Search, UserCheck, UserX, Key } from 'lucide-react'
 import PageHeader from '@/components/shared/PageHeader'
 import EmptyState from '@/components/shared/EmptyState'
 import Modal from '@/components/shared/Modal'
@@ -17,6 +17,7 @@ export default function UsuariosPage() {
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [enlaceModalOpen, setEnlaceModalOpen] = useState(false)
+  const [passModalOpen, setPassModalOpen] = useState(false)
   const [editando, setEditando] = useState<Usuario | null>(null)
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
@@ -25,6 +26,8 @@ export default function UsuariosPage() {
   const [sortField, setSortField] = useState('apellido')
   const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc')
   const [authUsers, setAuthUsers] = useState<{id:string,email:string}[]>([])
+  const [passNueva, setPassNueva] = useState('')
+  const [passMsg, setPassMsg] = useState('')
 
   const [form, setForm] = useState({
     nombre: '', apellido: '', email: '', rol_id: '', is_admin: false, activo: true
@@ -69,6 +72,13 @@ export default function UsuariosPage() {
     setEnlaceModalOpen(true)
   }
 
+  function openPass(u: Usuario) {
+    setEditando(u)
+    setPassNueva('')
+    setPassMsg('')
+    setPassModalOpen(true)
+  }
+
   async function handleSave() {
     if (!form.nombre || !form.apellido) return
     setSaving(true)
@@ -90,6 +100,23 @@ export default function UsuariosPage() {
     })
     await fetchAll()
     setEnlaceModalOpen(false)
+    setSaving(false)
+  }
+
+  async function handleSetPass() {
+    if (!editando?.auth_user_id || !passNueva) return
+    if (passNueva.length < 6) { setPassMsg('Mínimo 6 caracteres'); return }
+    setSaving(true)
+    const res = await fetch('/api/usuarios/set-password', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auth_user_id: editando.auth_user_id, password: passNueva })
+    })
+    if (res.ok) {
+      setPassMsg('✓ Contraseña actualizada correctamente')
+    } else {
+      const d = await res.json()
+      setPassMsg(`Error: ${d.error}`)
+    }
     setSaving(false)
   }
 
@@ -141,16 +168,13 @@ export default function UsuariosPage() {
               <span key={a.id} className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full">{a.email}</span>
             ))}
           </div>
-          <p className="text-amber-600 text-xs mt-2">Editá el usuario correspondiente y usá el botón de enlace para conectarlos.</p>
         </div>
       )}
 
-      {/* Filtros */}
       <div className="bg-white rounded-xl border border-gray-100 p-4 mb-4 flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-48">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar por nombre o email..."
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..."
             className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]" />
         </div>
         <select value={filtroRol} onChange={e => setFiltroRol(e.target.value)}
@@ -166,14 +190,13 @@ export default function UsuariosPage() {
         </select>
       </div>
 
-      {/* Tabla */}
       <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="w-8 h-8 border-2 border-[#2B6CB0] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
-          <EmptyState title="Sin usuarios" description="Creá el primer usuario del sistema"
+          <EmptyState title="Sin usuarios" description="Creá el primer usuario"
             action={<Btn onClick={openNuevo} size="sm"><Plus size={14} />Nuevo Usuario</Btn>} />
         ) : (
           <div className="overflow-x-auto">
@@ -187,7 +210,7 @@ export default function UsuariosPage() {
                     </th>
                   ))}
                   <th className="px-4 py-3 text-xs font-semibold text-[#1B2A4A] uppercase">Estado</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-[#1B2A4A] uppercase">Enlace Google</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-[#1B2A4A] uppercase">Google</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
@@ -196,12 +219,11 @@ export default function UsuariosPage() {
                   <tr key={u.id} className={`hover:bg-[#F0F4F8] transition-colors ${!u.activo ? 'opacity-50' : ''}`}>
                     <td className="px-4 py-3.5 font-medium text-[#1B2A4A]">{u.apellido}</td>
                     <td className="px-4 py-3.5 text-gray-600">{u.nombre}</td>
-                    <td className="px-4 py-3.5 text-gray-500">{u.email ?? <span className="text-gray-300 italic">Sin email</span>}</td>
+                    <td className="px-4 py-3.5 text-gray-500 text-xs">{u.email ?? <span className="text-gray-300 italic">Sin email</span>}</td>
                     <td className="px-4 py-3.5">
                       {u.is_admin
                         ? <span className="text-xs bg-[#1B2A4A] text-white px-2 py-0.5 rounded-full">Admin</span>
-                        : <span className="text-xs bg-[#EBF8FF] text-[#2B6CB0] px-2 py-0.5 rounded-full">{(u.rol as any)?.nombre ?? 'Sin rol'}</span>
-                      }
+                        : <span className="text-xs bg-[#EBF8FF] text-[#2B6CB0] px-2 py-0.5 rounded-full">{(u.rol as any)?.nombre ?? 'Sin rol'}</span>}
                     </td>
                     <td className="px-4 py-3.5">
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${u.activo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
@@ -211,13 +233,18 @@ export default function UsuariosPage() {
                     <td className="px-4 py-3.5">
                       {u.auth_user_id
                         ? <span className="text-xs text-green-600 flex items-center gap-1"><UserCheck size={13} />Enlazado</span>
-                        : <span className="text-xs text-amber-500 flex items-center gap-1"><UserX size={13} />Sin enlazar</span>
-                      }
+                        : <span className="text-xs text-amber-500 flex items-center gap-1"><UserX size={13} />Sin enlazar</span>}
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1 justify-end">
-                        <button onClick={() => openEnlace(u)}
-                          className="p-1.5 rounded-lg hover:bg-[#EBF8FF] text-gray-400 hover:text-[#2B6CB0] transition-colors" title="Enlazar con Google">
+                        {u.auth_user_id && (
+                          <button onClick={() => openPass(u)} title="Cambiar contraseña"
+                            className="p-1.5 rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors">
+                            <Key size={13} />
+                          </button>
+                        )}
+                        <button onClick={() => openEnlace(u)} title="Enlazar con Google"
+                          className="p-1.5 rounded-lg hover:bg-[#EBF8FF] text-gray-400 hover:text-[#2B6CB0] transition-colors">
                           <Link size={13} />
                         </button>
                         <button onClick={() => openEditar(u)}
@@ -225,8 +252,7 @@ export default function UsuariosPage() {
                           <Pencil size={13} />
                         </button>
                         <button onClick={() => toggleActivo(u)}
-                          className={`p-1.5 rounded-lg transition-colors ${u.activo ? 'hover:bg-red-50 text-gray-400 hover:text-red-500' : 'hover:bg-green-50 text-gray-400 hover:text-green-500'}`}
-                          title={u.activo ? 'Desactivar' : 'Activar'}>
+                          className={`p-1.5 rounded-lg transition-colors ${u.activo ? 'hover:bg-red-50 text-gray-400 hover:text-red-500' : 'hover:bg-green-50 text-gray-400 hover:text-green-500'}`}>
                           {u.activo ? <UserX size={13} /> : <UserCheck size={13} />}
                         </button>
                       </div>
@@ -285,7 +311,7 @@ export default function UsuariosPage() {
         title="Enlazar con cuenta Google" size="sm">
         <div className="space-y-4">
           <p className="text-sm text-gray-500">
-            Seleccioná la cuenta de Google que corresponde a <strong>{editando?.nombre} {editando?.apellido}</strong>
+            Seleccioná la cuenta de Google para <strong>{editando?.nombre} {editando?.apellido}</strong>
           </p>
           <FormField label="Cuenta Google">
             <Select value={enlaceAuthId} onChange={e => {
@@ -294,19 +320,42 @@ export default function UsuariosPage() {
               if (user) setEnlaceEmail(user.email)
             }}>
               <option value="">Seleccioná una cuenta</option>
-              {authUsers.map(a => (
-                <option key={a.id} value={a.id}>{a.email}</option>
-              ))}
+              {authUsers.map(a => <option key={a.id} value={a.id}>{a.email}</option>)}
             </Select>
           </FormField>
           {enlaceEmail && (
             <div className="p-3 bg-[#EBF8FF] rounded-lg text-sm text-[#2B6CB0]">
-              Email a enlazar: <strong>{enlaceEmail}</strong>
+              Email: <strong>{enlaceEmail}</strong>
             </div>
           )}
           <div className="flex justify-end gap-3">
             <Btn variant="secondary" onClick={() => setEnlaceModalOpen(false)}>Cancelar</Btn>
-            <Btn onClick={handleEnlace} loading={saving} disabled={!enlaceAuthId}>Enlazar cuenta</Btn>
+            <Btn onClick={handleEnlace} loading={saving} disabled={!enlaceAuthId}>Enlazar</Btn>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Contraseña */}
+      <Modal open={passModalOpen} onClose={() => setPassModalOpen(false)}
+        title="Establecer contraseña provisoria" size="sm">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">
+            Asigná una contraseña provisoria a <strong>{editando?.nombre} {editando?.apellido}</strong>.
+            El usuario podrá cambiarla desde su perfil.
+          </p>
+          <FormField label="Nueva contraseña" required>
+            <Input type="text" value={passNueva}
+              onChange={e => { setPassNueva(e.target.value); setPassMsg('') }}
+              placeholder="Mínimo 6 caracteres" />
+          </FormField>
+          {passMsg && (
+            <div className={`p-3 rounded-lg text-sm ${passMsg.startsWith('✓') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+              {passMsg}
+            </div>
+          )}
+          <div className="flex justify-end gap-3">
+            <Btn variant="secondary" onClick={() => setPassModalOpen(false)}>Cerrar</Btn>
+            <Btn onClick={handleSetPass} loading={saving} disabled={!passNueva}>Guardar contraseña</Btn>
           </div>
         </div>
       </Modal>

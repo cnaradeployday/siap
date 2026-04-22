@@ -35,22 +35,17 @@ export default function Sidebar({ usuario }: { usuario: Usuario & { rol?: any } 
 
   return (
     <>
-      <button
-        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-[#1B2A4A] text-white rounded-lg shadow"
-        onClick={() => setOpen(!open)}
-      >
+      <button className="md:hidden fixed top-4 left-4 z-50 p-2 bg-[#1B2A4A] text-white rounded-lg shadow"
+        onClick={() => setOpen(!open)}>
         {open ? <X size={20} /> : <Menu size={20} />}
       </button>
 
-      {open && (
-        <div className="md:hidden fixed inset-0 bg-black/40 z-30" onClick={() => setOpen(false)} />
-      )}
+      {open && <div className="md:hidden fixed inset-0 bg-black/40 z-30" onClick={() => setOpen(false)} />}
 
       <aside className={cn(
         "fixed md:static inset-y-0 left-0 z-40 w-60 bg-[#1B2A4A] flex flex-col transition-transform duration-300",
         open ? "translate-x-0" : "-translate-x-full md:translate-x-0"
       )}>
-        {/* Logo */}
         <div className="p-5 border-b border-white/10 flex items-center gap-3">
           <img src="/logo.png" alt="Logo" className="w-9 h-9 object-contain rounded-full"
             onError={(e) => { e.currentTarget.style.display='none' }} />
@@ -60,22 +55,15 @@ export default function Sidebar({ usuario }: { usuario: Usuario & { rol?: any } 
           </div>
         </div>
 
-        {/* Nav */}
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
           {navItems.map((item) => {
             const active = pathname === item.href || pathname.startsWith(item.href + '/')
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
+              <Link key={item.href} href={item.href} onClick={() => setOpen(false)}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
-                  active
-                    ? "bg-[#2B6CB0] text-white"
-                    : "text-white/60 hover:text-white hover:bg-white/8"
-                )}
-              >
+                  active ? "bg-[#2B6CB0] text-white" : "text-white/60 hover:text-white hover:bg-white/10"
+                )}>
                 <item.icon size={17} className={active ? "text-[#90CDF4]" : ""} />
                 {item.label}
               </Link>
@@ -83,7 +71,6 @@ export default function Sidebar({ usuario }: { usuario: Usuario & { rol?: any } 
           })}
         </nav>
 
-        {/* User */}
         <div className="p-4 border-t border-white/10">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-[#2B6CB0] flex items-center justify-center flex-shrink-0">
