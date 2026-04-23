@@ -12,7 +12,7 @@ import Input from '@/components/shared/Input'
 import Textarea from '@/components/shared/Textarea'
 import Select from '@/components/shared/Select'
 import { LineaAccion, Proyecto, Usuario, EstadoItem, ESTADO_LABELS } from '@/lib/types'
-import { formatDate } from '@/lib/utils'
+import { formatDate, calcularEstadoReal } from '@/lib/utils'
 
 const ESTADOS: EstadoItem[] = ['pendiente', 'en_proceso', 'bloqueado', 'vencido', 'completado']
 
@@ -72,13 +72,21 @@ export default function LineasAccionPage() {
     setModalOpen(true)
   }
 
+  async function handleEstadoRapido(id: string, estado: EstadoItem) {
+    await fetch(`/api/lineas/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ estado })
+    })
+    await fetchAll()
+  }
+
   async function handleSave() {
     setFormError('')
     if (!form.proyecto_id || !form.nombre || !form.fecha_inicio || !form.fecha_fin) {
       setFormError('Completá los campos obligatorios')
       return
     }
-    // Validar fechas dentro del proyecto
     const proyecto = proyectos.find(p => p.id === form.proyecto_id)
     if (proyecto) {
       if (form.fecha_inicio < proyecto.fecha_inicio || form.fecha_fin > proyecto.fecha_fin) {
@@ -86,7 +94,6 @@ export default function LineasAccionPage() {
         return
       }
     }
-    // Validar máximo 3 líneas por proyecto
     if (!editando) {
       const lineasDelProyecto = lineas.filter(l => l.proyecto_id === form.proyecto_id)
       if (lineasDelProyecto.length >= 3) {
@@ -97,7 +104,11 @@ export default function LineasAccionPage() {
     setSaving(true)
     const url = editando ? `/api/lineas/${editando.id}` : '/api/lineas'
     const method = editando ? 'PATCH' : 'POST'
-    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form)
+    })
     if (!res.ok) {
       const err = await res.json()
       setFormError(err.error ?? 'Error al guardar')
@@ -125,10 +136,11 @@ export default function LineasAccionPage() {
   const filtered = lineas
     .filter(l => {
       const q = search.toLowerCase()
+      const estadoReal = calcularEstadoReal(l.estado, l.fecha_fin)
       const matchSearch = !q || l.nombre.toLowerCase().includes(q) ||
         (l.proyecto as any)?.nombre?.toLowerCase().includes(q)
       const matchProyecto = !filtroProyecto || l.proyecto_id === filtroProyecto
-      const matchEstado = !filtroEstado || l.estado === filtroEstado
+      const matchEstado = !filtroEstado || estadoReal === filtroEstado
       return matchSearch && matchProyecto && matchEstado
     })
     .sort((a, b) => {
@@ -149,7 +161,6 @@ export default function LineasAccionPage() {
         action={<Btn onClick={openNuevo}><Plus size={16} />Nueva Línea</Btn>}
       />
 
-      {/* Filtros */}
       <div className="bg-white rounded-xl border border-gray-100 p-4 mb-4 flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-48">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -169,7 +180,6 @@ export default function LineasAccionPage() {
         </select>
       </div>
 
-      {/* Tabla */}
       <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-16">
@@ -194,40 +204,58 @@ export default function LineasAccionPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {filtered.map(l => (
-                  <tr key={l.id} className="hover:bg-[#F0F4F8] transition-colors">
-                    <td className="px-4 py-3.5 font-medium text-[#1B2A4A]">
-                      <div>{l.nombre}</div>
-                      <div className="text-xs text-gray-400">Línea {l.orden}</div>
-                    </td>
-                    <td className="px-4 py-3.5 text-gray-500">{(l.proyecto as any)?.nombre ?? '-'}</td>
-                    <td className="px-4 py-3.5"><StatusBadge estado={l.estado} /></td>
-                    <td className="px-4 py-3.5 text-gray-500">
-                      {(l.responsable as any) ? `${(l.responsable as any).apellido}, ${(l.responsable as any).nombre}` : '-'}
-                    </td>
-                    <td className="px-4 py-3.5 text-gray-500">{formatDate(l.fecha_inicio)}</td>
-                    <td className="px-4 py-3.5 text-gray-500">{formatDate(l.fecha_fin)}</td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-1 justify-end">
-                        <button onClick={() => openEditar(l)}
-                          className="p-1.5 rounded-lg hover:bg-[#EBF8FF] text-gray-400 hover:text-[#2B6CB0] transition-colors">
-                          <Pencil size={14} />
-                        </button>
-                        <button onClick={() => handleDelete(l.id)}
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {filtered.map(l => {
+                  const estadoReal = calcularEstadoReal(l.estado, l.fecha_fin)
+                  return (
+                    <tr key={l.id} className="hover:bg-[#F0F4F8] transition-colors">
+                      <td className="px-4 py-3.5 font-medium text-[#1B2A4A]">
+                        <div>{l.nombre}</div>
+                        <div className="text-xs text-gray-400">Línea {l.orden}</div>
+                      </td>
+                      <td className="px-4 py-3.5 text-gray-500">{(l.proyecto as any)?.nombre ?? '-'}</td>
+                      <td className="px-4 py-3.5">
+                        <select
+                          value={l.estado}
+                          onChange={e => handleEstadoRapido(l.id, e.target.value as EstadoItem)}
+                          className={`text-xs border rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#2B6CB0] bg-white font-medium ${
+                            estadoReal === 'vencido' ? 'border-red-300 text-red-700' :
+                            estadoReal === 'bloqueado' ? 'border-red-200 text-red-600' :
+                            estadoReal === 'completado' ? 'border-green-200 text-green-700' :
+                            estadoReal === 'en_proceso' ? 'border-blue-200 text-blue-700' :
+                            'border-amber-200 text-amber-700'
+                          }`}>
+                          {ESTADOS.map(e => <option key={e} value={e}>{ESTADO_LABELS[e]}</option>)}
+                        </select>
+                        {estadoReal === 'vencido' && l.estado !== 'vencido' && (
+                          <div className="text-xs text-red-500 mt-0.5">⚠ Fecha vencida</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 text-gray-500">
+                        {(l.responsable as any) ? `${(l.responsable as any).apellido}, ${(l.responsable as any).nombre}` : '-'}
+                      </td>
+                      <td className="px-4 py-3.5 text-gray-500">{formatDate(l.fecha_inicio)}</td>
+                      <td className="px-4 py-3.5 text-gray-500">{formatDate(l.fecha_fin)}</td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-1 justify-end">
+                          <button onClick={() => openEditar(l)}
+                            className="p-1.5 rounded-lg hover:bg-[#EBF8FF] text-gray-400 hover:text-[#2B6CB0] transition-colors">
+                            <Pencil size={14} />
+                          </button>
+                          <button onClick={() => handleDelete(l.id)}
+                            className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* Modal */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)}
         title={editando ? 'Editar Línea de Acción' : 'Nueva Línea de Acción'} size="lg">
         <div className="space-y-4">
@@ -235,7 +263,8 @@ export default function LineasAccionPage() {
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{formError}</div>
           )}
           <FormField label="Proyecto" required>
-            <Select value={form.proyecto_id} onChange={e => setForm(f => ({ ...f, proyecto_id: e.target.value, fecha_inicio: '', fecha_fin: '' }))}
+            <Select value={form.proyecto_id}
+              onChange={e => setForm(f => ({ ...f, proyecto_id: e.target.value, fecha_inicio: '', fecha_fin: '' }))}
               disabled={!!editando}>
               <option value="">Seleccioná un proyecto</option>
               {proyectos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
@@ -247,7 +276,7 @@ export default function LineasAccionPage() {
             </div>
           )}
           <FormField label="Nombre" required>
-            <Input value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Nombre de la línea de acción" />
+            <Input value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
           </FormField>
           <FormField label="Descripción">
             <Textarea value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} rows={3} />
