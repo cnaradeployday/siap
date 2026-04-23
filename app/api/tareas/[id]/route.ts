@@ -7,26 +7,28 @@ const supabaseAdmin = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 )
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const body = await req.json()
   const { dependencias, ...tareaData } = body
   const { data, error } = await supabaseAdmin
-    .from('tareas').update(tareaData).eq('id', params.id).select().single()
+    .from('tareas').update(tareaData).eq('id', id).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   if (dependencias !== undefined) {
-    await supabaseAdmin.from('dependencias_tareas').delete().eq('tarea_id', params.id)
+    await supabaseAdmin.from('dependencias_tareas').delete().eq('tarea_id', id)
     if (dependencias.length) {
       await supabaseAdmin.from('dependencias_tareas').insert(
-        dependencias.map((d: string) => ({ tarea_id: params.id, depende_de_id: d }))
+        dependencias.map((d: string) => ({ tarea_id: id, depende_de_id: d }))
       )
     }
   }
   return NextResponse.json(data)
 }
 
-export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const { error } = await supabaseAdmin
-    .from('tareas').update({ deleted_at: new Date().toISOString() }).eq('id', params.id)
+    .from('tareas').update({ deleted_at: new Date().toISOString() }).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json({ ok: true })
 }
