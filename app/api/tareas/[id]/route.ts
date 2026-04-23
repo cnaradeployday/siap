@@ -7,15 +7,19 @@ const supabaseAdmin = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 )
 
+function calcFechaFin(fechaInicio: string, duracionDias: number): string {
+  const d = new Date(fechaInicio + 'T12:00:00')
+  d.setDate(d.getDate() + duracionDias)
+  return d.toISOString().split('T')[0]
+}
+
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const body = await req.json()
   const { dependencias, ...tareaData } = body
 
   if (tareaData.fecha_inicio && tareaData.duracion_dias) {
-    const inicio = new Date(tareaData.fecha_inicio + 'T12:00:00')
-    inicio.setDate(inicio.getDate() + Number(tareaData.duracion_dias) - 1)
-    tareaData.fecha_fin = inicio.toISOString().split('T')[0]
+    tareaData.fecha_fin = calcFechaFin(tareaData.fecha_inicio, Number(tareaData.duracion_dias))
   }
 
   const { data, error } = await supabaseAdmin

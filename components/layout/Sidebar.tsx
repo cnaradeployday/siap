@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { Usuario } from '@/lib/types'
 import {
   LayoutDashboard, FolderKanban, GitBranch, CheckSquare,
-  Users, Shield, GitMerge, Menu, X, BarChart3, ChevronLeft, ChevronRight
+  Users, Shield, GitMerge, Menu, X, BarChart3, ChevronLeft, ChevronRight, ScrollText
 } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -19,6 +19,7 @@ const NAV_ITEMS = [
   { href: '/tareas',              label: 'Tareas',               icon: CheckSquare,     seccion: 'tareas' },
   { href: '/usuarios',            label: 'Usuarios',             icon: Users,           seccion: 'usuarios' },
   { href: '/roles',               label: 'Roles',                icon: Shield,          seccion: 'roles' },
+  { href: '/logs',                label: 'Logs',                 icon: ScrollText,      seccion: 'logs' },
 ]
 
 export default function Sidebar({ usuario }: { usuario: Usuario & { rol?: any } }) {
@@ -35,7 +36,6 @@ export default function Sidebar({ usuario }: { usuario: Usuario & { rol?: any } 
 
   return (
     <>
-      {/* Mobile toggle */}
       <button className="md:hidden fixed top-4 left-4 z-50 p-2 bg-[#1B2A4A] text-white rounded-lg shadow"
         onClick={() => setMobileOpen(!mobileOpen)}>
         {mobileOpen ? <X size={20} /> : <Menu size={20} />}
@@ -50,7 +50,6 @@ export default function Sidebar({ usuario }: { usuario: Usuario & { rol?: any } 
         collapsed ? "w-16" : "w-60",
         mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
       )}>
-        {/* Logo + colapsar */}
         <div className={cn("border-b border-white/10 flex items-center", collapsed ? "p-3 justify-center" : "p-4 gap-3")}>
           {!collapsed && (
             <>
@@ -72,7 +71,6 @@ export default function Sidebar({ usuario }: { usuario: Usuario & { rol?: any } 
           </button>
         </div>
 
-        {/* Nav */}
         <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto overflow-x-hidden">
           {navItems.map((item) => {
             const active = pathname === item.href || pathname.startsWith(item.href + '/')
@@ -85,14 +83,13 @@ export default function Sidebar({ usuario }: { usuario: Usuario & { rol?: any } 
                   collapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5",
                   active ? "bg-[#2B6CB0] text-white" : "text-white/60 hover:text-white hover:bg-white/10"
                 )}>
-                <item.icon size={18} className={active ? "text-[#90CDF4] flex-shrink-0" : "flex-shrink-0"} />
+                <item.icon size={18} className="flex-shrink-0" />
                 {!collapsed && <span className="truncate">{item.label}</span>}
               </Link>
             )
           })}
         </nav>
 
-        {/* User */}
         <div className={cn("border-t border-white/10", collapsed ? "p-2" : "p-4")}>
           <div className={cn("flex items-center", collapsed ? "justify-center" : "gap-3")}>
             <div className="w-8 h-8 rounded-full bg-[#2B6CB0] flex items-center justify-center flex-shrink-0">

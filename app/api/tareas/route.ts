@@ -7,6 +7,12 @@ const supabaseAdmin = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 )
 
+function calcFechaFin(fechaInicio: string, duracionDias: number): string {
+  const d = new Date(fechaInicio + 'T12:00:00')
+  d.setDate(d.getDate() + duracionDias)
+  return d.toISOString().split('T')[0]
+}
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const lineaId = searchParams.get('lineaId')
@@ -16,7 +22,10 @@ export async function GET(req: Request) {
     .select(`
       *,
       responsable:usuarios!tareas_responsable_id_fkey(id,nombre,apellido),
-      linea:lineas_accion(id,nombre,proyecto_id),
+      linea:lineas_accion(
+        id, nombre, orden,
+        proyecto:proyectos(id,nombre)
+      ),
       subtareas(
         *,
         responsable:usuarios!subtareas_responsable_id_fkey(id,nombre,apellido)
@@ -42,9 +51,7 @@ export async function POST(req: Request) {
   const { dependencias, ...tareaData } = body
 
   if (tareaData.fecha_inicio && tareaData.duracion_dias) {
-    const inicio = new Date(tareaData.fecha_inicio + 'T12:00:00')
-    inicio.setDate(inicio.getDate() + Number(tareaData.duracion_dias) - 1)
-    tareaData.fecha_fin = inicio.toISOString().split('T')[0]
+    tareaData.fecha_fin = calcFechaFin(tareaData.fecha_inicio, Number(tareaData.duracion_dias))
   }
 
   const { data, error } = await supabaseAdmin
