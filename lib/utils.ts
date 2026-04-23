@@ -8,9 +8,15 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatDate(date: string | null): string {
   if (!date) return '-'
-  return new Date(date).toLocaleDateString('es-AR', {
+  return new Date(date + 'T12:00:00').toLocaleDateString('es-AR', {
     day: '2-digit', month: '2-digit', year: 'numeric'
   })
+}
+
+export function calcularEstadoReal(estado: EstadoItem, fechaFin: string): EstadoItem {
+  if (estado === 'completado') return estado
+  if (new Date(fechaFin + 'T23:59:59') < new Date()) return 'vencido'
+  return estado
 }
 
 export function calcularEstadoProyecto(estados: EstadoItem[]): EstadoItem {
@@ -23,6 +29,6 @@ export function calcularEstadoProyecto(estados: EstadoItem[]): EstadoItem {
 }
 
 export function isVencido(fechaFin: string, estado: EstadoItem): boolean {
-  if (estado === 'completado' || estado === 'cancelado' as EstadoItem) return false
-  return new Date() > new Date(fechaFin)
+  if (estado === 'completado') return false
+  return new Date(fechaFin + 'T23:59:59') < new Date()
 }
