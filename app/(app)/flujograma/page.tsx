@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { Download } from 'lucide-react'
+import { Download, Printer } from 'lucide-react'
 import { Proyecto, EstadoItem } from '@/lib/types'
 import { formatDate, calcularEstadoReal, calcularEstadoProyecto } from '@/lib/utils'
 import StatusBadge from '@/components/shared/StatusBadge'
@@ -21,7 +21,6 @@ export default function FlujogramaPage() {
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
   const [loading, setLoading] = useState(true)
   const [seleccionados, setSeleccionados] = useState<string[]>([])
-  const [exportando, setExportando] = useState(false)
   const printRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -39,179 +38,166 @@ export default function FlujogramaPage() {
     )
   }
 
-  async function exportarPDF() {
-    setExportando(true)
-    try {
-      const { default: html2canvas } = await import('html2canvas' as any)
-      const { default: jsPDF } = await import('jspdf' as any)
-      const element = printRef.current
-      if (!element) return
-      const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#f0f4f8' })
-      const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
-      const pdfWidth = pdf.internal.pageSize.getWidth()
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width
-      let heightLeft = pdfHeight
-      let position = 0
-      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight)
-      heightLeft -= pdf.internal.pageSize.getHeight()
-      while (heightLeft > 0) {
-        position = heightLeft - pdfHeight
-        pdf.addPage()
-        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight)
-        heightLeft -= pdf.internal.pageSize.getHeight()
-      }
-      pdf.save('flujograma_siap.pdf')
-    } catch (e) {
-      alert('Error al exportar. Intentá de nuevo.')
-    }
-    setExportando(false)
+  function exportarPDF() {
+    window.print()
   }
 
   const proyectosFiltrados = proyectos.filter(p => seleccionados.includes(p.id))
 
-  const ContenidoFlujograma = () => (
-    <div className="space-y-8">
-      {proyectosFiltrados.map(p => {
-        const lineas = [...((p.lineas_accion as any[]) ?? [])].sort((a, b) => a.orden - b.orden)
-        const estadosLineas = lineas.map((l: any) => calcularEstadoReal(l.estado, l.fecha_fin))
-        const estadoProyecto = lineas.length > 0 ? calcularEstadoProyecto(estadosLineas) : p.estado
-        const completadas = lineas.filter((l: any) => calcularEstadoReal(l.estado, l.fecha_fin) === 'completado').length
+  return (
+    <>
+      {/* Estilos de impresión */}
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #flujograma-print, #flujograma-print * { visibility: visible; }
+          #flujograma-print { position: absolute; left: 0; top: 0; width: 100%; }
+          .no-print { display: none !important; }
+        }
+      `}</style>
 
-        return (
-          <div key={p.id} className="bg-white rounded-xl border border-gray-100 p-6">
-            <div className="mb-4">
-              <div className="flex items-start justify-between flex-wrap gap-2">
-                <h2 className="text-lg font-bold text-[#1B2A4A]">{p.nombre}</h2>
-                <StatusBadge estado={estadoProyecto} fechaFin={p.fecha_fin} size="md" />
-              </div>
-              <div className="flex items-center gap-4 mt-1 flex-wrap text-xs text-gray-400">
-                <span>{formatDate(p.fecha_inicio)} → {formatDate(p.fecha_fin)}</span>
-                {(p.patrocinador as any) && (
-                  <span>Patrocinador: {(p.patrocinador as any).apellido}, {(p.patrocinador as any).nombre}</span>
-                )}
-              </div>
-              {(p.descripcion || p.metrica_exito) && (
-                <div className="mt-3 grid md:grid-cols-2 gap-3">
-                  {p.descripcion && (
-                    <div className="bg-[#F0F4F8] rounded-lg px-3 py-2">
-                      <p className="text-xs font-semibold text-[#1B2A4A] mb-0.5">Descripción</p>
-                      <p className="text-xs text-gray-600">{p.descripcion}</p>
-                    </div>
-                  )}
-                  {p.metrica_exito && (
-                    <div className="bg-[#F0F4F8] rounded-lg px-3 py-2">
-                      <p className="text-xs font-semibold text-[#1B2A4A] mb-0.5">Variable de éxito</p>
-                      <p className="text-xs text-gray-600">{p.metrica_exito}</p>
-                    </div>
-                  )}
-                </div>
-              )}
+      <div>
+        <div className="flex items-start justify-between mb-1 no-print">
+          <div>
+            <h1 className="text-2xl font-bold text-[#1B2A4A]">Flujograma</h1>
+            <p className="text-gray-400 text-sm">Visualización de proyectos y sus líneas de acción</p>
+          </div>
+          <Btn variant="secondary" size="sm" onClick={exportarPDF}>
+            <Printer size={14} />Exportar PDF
+          </Btn>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-100 p-4 mb-6 mt-4 no-print">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-medium text-[#1B2A4A]">Filtrar proyectos</p>
+            <div className="flex gap-2">
+              <button onClick={() => setSeleccionados(proyectos.map(p => p.id))}
+                className="text-xs text-[#2B6CB0] hover:underline">Todos</button>
+              <span className="text-gray-300">|</span>
+              <button onClick={() => setSeleccionados([])}
+                className="text-xs text-gray-400 hover:underline">Ninguno</button>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {proyectos.map(p => (
+              <button key={p.id} onClick={() => toggleProyecto(p.id)}
+                className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                  seleccionados.includes(p.id)
+                    ? 'bg-[#1B2A4A] text-white border-[#1B2A4A]'
+                    : 'bg-white text-gray-500 border-gray-200 hover:border-[#2B6CB0]'
+                }`}>
+                {p.nombre}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="w-8 h-8 border-2 border-[#2B6CB0] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : proyectosFiltrados.length === 0 ? (
+          <div className="text-center py-16 text-gray-400">Seleccioná al menos un proyecto</div>
+        ) : (
+          <div id="flujograma-print" className="space-y-8">
+            {/* Header para impresión */}
+            <div className="hidden print:block mb-6">
+              <h1 className="text-2xl font-bold text-[#1B2A4A]">SIAP — Flujograma de Proyectos</h1>
+              <p className="text-sm text-gray-400">Ministerio de Economía — República Argentina — {new Date().toLocaleDateString('es-AR')}</p>
             </div>
 
-            {lineas.length === 0 ? (
-              <p className="text-gray-300 text-sm italic">Sin líneas de acción</p>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-3 mt-2">
-                {lineas.map((l: any) => {
-                  const er = calcularEstadoReal(l.estado, l.fecha_fin)
-                  const nro = NRO_LINEA[l.orden - 1] ?? l.orden
-                  return (
-                    <div key={l.id} className={`rounded-xl border-2 p-4 ${ESTADO_BORDER[er] ?? 'border-gray-200 bg-gray-50'}`}>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold text-[#1B2A4A] uppercase tracking-wider">
-                          Línea {nro}
-                        </span>
-                        <StatusBadge estado={er} size="sm" />
-                      </div>
-                      <h3 className="font-semibold text-[#1B2A4A] text-sm mb-1">{l.nombre}</h3>
-                      {l.descripcion && <p className="text-xs text-gray-500 mb-1">{l.descripcion}</p>}
-                      {l.metrica_exito && <p className="text-xs text-gray-400 italic mb-2">✓ {l.metrica_exito}</p>}
-                      <div className="space-y-1 mt-2">
-                        {l.responsable && (
-                          <div className="flex items-center gap-2">
-                            <div className="w-5 h-5 rounded-full bg-[#1B2A4A] flex items-center justify-center flex-shrink-0">
-                              <span className="text-white text-[8px] font-bold">
-                                {l.responsable.nombre[0]}{l.responsable.apellido[0]}
-                              </span>
-                            </div>
-                            <span className="text-xs text-gray-600">{l.responsable.apellido}, {l.responsable.nombre}</span>
+            {proyectosFiltrados.map(p => {
+              const lineas = [...((p.lineas_accion as any[]) ?? [])].sort((a, b) => a.orden - b.orden)
+              const estadosLineas = lineas.map((l: any) => calcularEstadoReal(l.estado, l.fecha_fin))
+              const estadoProyecto = lineas.length > 0 ? calcularEstadoProyecto(estadosLineas) : p.estado
+              const completadas = lineas.filter((l: any) => calcularEstadoReal(l.estado, l.fecha_fin) === 'completado').length
+
+              return (
+                <div key={p.id} className="bg-white rounded-xl border border-gray-200 p-6">
+                  <div className="mb-4">
+                    <div className="flex items-start justify-between flex-wrap gap-2">
+                      <h2 className="text-lg font-bold text-[#1B2A4A]">{p.nombre}</h2>
+                      <StatusBadge estado={estadoProyecto} fechaFin={p.fecha_fin} size="md" />
+                    </div>
+                    <div className="flex items-center gap-4 mt-1 flex-wrap text-xs text-gray-400">
+                      <span>{formatDate(p.fecha_inicio)} → {formatDate(p.fecha_fin)}</span>
+                      {(p.patrocinador as any) && (
+                        <span>Patrocinador: {(p.patrocinador as any).apellido}, {(p.patrocinador as any).nombre}</span>
+                      )}
+                    </div>
+                    {(p.descripcion || p.metrica_exito) && (
+                      <div className="mt-3 grid md:grid-cols-2 gap-3">
+                        {p.descripcion && (
+                          <div className="bg-[#F0F4F8] rounded-lg px-3 py-2">
+                            <p className="text-xs font-semibold text-[#1B2A4A] mb-0.5">Descripción</p>
+                            <p className="text-xs text-gray-600">{p.descripcion}</p>
                           </div>
                         )}
-                        <div className="text-xs text-gray-500">{formatDate(l.fecha_inicio)} → {formatDate(l.fecha_fin)}</div>
+                        {p.metrica_exito && (
+                          <div className="bg-[#F0F4F8] rounded-lg px-3 py-2">
+                            <p className="text-xs font-semibold text-[#1B2A4A] mb-0.5">Variable de éxito</p>
+                            <p className="text-xs text-gray-600">{p.metrica_exito}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {lineas.length === 0 ? (
+                    <p className="text-gray-300 text-sm italic">Sin líneas de acción</p>
+                  ) : (
+                    <div className="grid gap-4 md:grid-cols-3 mt-2">
+                      {lineas.map((l: any) => {
+                        const er = calcularEstadoReal(l.estado, l.fecha_fin)
+                        const nro = NRO_LINEA[l.orden - 1] ?? l.orden
+                        return (
+                          <div key={l.id} className={`rounded-xl border-2 p-4 ${ESTADO_BORDER[er] ?? 'border-gray-200 bg-gray-50'}`}>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-bold text-[#1B2A4A] uppercase tracking-wider">
+                                Línea {nro}
+                              </span>
+                              <StatusBadge estado={er} size="sm" />
+                            </div>
+                            <h3 className="font-semibold text-[#1B2A4A] text-sm mb-1">{l.nombre}</h3>
+                            {l.descripcion && <p className="text-xs text-gray-500 mb-1">{l.descripcion}</p>}
+                            {l.metrica_exito && <p className="text-xs text-gray-400 italic mb-2">✓ {l.metrica_exito}</p>}
+                            <div className="space-y-1 mt-2">
+                              {l.responsable && (
+                                <div className="flex items-center gap-2">
+                                  <div className="w-5 h-5 rounded-full bg-[#1B2A4A] flex items-center justify-center flex-shrink-0">
+                                    <span className="text-white text-[8px] font-bold">
+                                      {l.responsable.nombre[0]}{l.responsable.apellido[0]}
+                                    </span>
+                                  </div>
+                                  <span className="text-xs text-gray-600">{l.responsable.apellido}, {l.responsable.nombre}</span>
+                                </div>
+                              )}
+                              <div className="text-xs text-gray-500">{formatDate(l.fecha_inicio)} → {formatDate(l.fecha_fin)}</div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {lineas.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <div className="flex items-center justify-between text-xs text-gray-400 mb-1.5">
+                        <span>{completadas}/{lineas.length} líneas completadas</span>
+                        <span>{Math.round((completadas / lineas.length) * 100)}%</span>
+                      </div>
+                      <div className="bg-gray-100 rounded-full h-1.5">
+                        <div className="bg-[#1B2A4A] h-1.5 rounded-full"
+                          style={{ width: `${(completadas / lineas.length) * 100}%` }} />
                       </div>
                     </div>
-                  )
-                })}
-              </div>
-            )}
-
-            {lineas.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <div className="flex items-center justify-between text-xs text-gray-400 mb-1.5">
-                  <span>{completadas}/{lineas.length} líneas completadas</span>
-                  <span>{Math.round((completadas / lineas.length) * 100)}%</span>
+                  )}
                 </div>
-                <div className="bg-gray-100 rounded-full h-1.5">
-                  <div className="bg-[#1B2A4A] h-1.5 rounded-full transition-all"
-                    style={{ width: `${(completadas / lineas.length) * 100}%` }} />
-                </div>
-              </div>
-            )}
+              )
+            })}
           </div>
-        )
-      })}
-    </div>
-  )
-
-  return (
-    <div>
-      <div className="flex items-start justify-between mb-1">
-        <div>
-          <h1 className="text-2xl font-bold text-[#1B2A4A]">Flujograma</h1>
-          <p className="text-gray-400 text-sm">Visualización de proyectos y sus líneas de acción</p>
-        </div>
-        <Btn variant="secondary" size="sm" onClick={exportarPDF} loading={exportando}>
-          <Download size={14} />Exportar PDF
-        </Btn>
+        )}
       </div>
-
-      <div className="bg-white rounded-xl border border-gray-100 p-4 mb-6 mt-4">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-medium text-[#1B2A4A]">Filtrar proyectos</p>
-          <div className="flex gap-2">
-            <button onClick={() => setSeleccionados(proyectos.map(p => p.id))}
-              className="text-xs text-[#2B6CB0] hover:underline">Todos</button>
-            <span className="text-gray-300">|</span>
-            <button onClick={() => setSeleccionados([])}
-              className="text-xs text-gray-400 hover:underline">Ninguno</button>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {proyectos.map(p => (
-            <button key={p.id} onClick={() => toggleProyecto(p.id)}
-              className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-                seleccionados.includes(p.id)
-                  ? 'bg-[#1B2A4A] text-white border-[#1B2A4A]'
-                  : 'bg-white text-gray-500 border-gray-200 hover:border-[#2B6CB0]'
-              }`}>
-              {p.nombre}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <div className="w-8 h-8 border-2 border-[#2B6CB0] border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : proyectosFiltrados.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">Seleccioná al menos un proyecto</div>
-      ) : (
-        <div ref={printRef}>
-          <ContenidoFlujograma />
-        </div>
-      )}
-    </div>
+    </>
   )
 }
