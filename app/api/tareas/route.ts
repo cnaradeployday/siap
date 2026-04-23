@@ -32,11 +32,24 @@ export async function POST(req: Request) {
     { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } }
   )
   const { data: { user } } = await supabase.auth.getUser()
-  const { data: usuario } = await supabaseAdmin.from('usuarios').select('id').eq('auth_user_id', user!.id).single()
+  const { data: usuario } = await supabaseAdmin
+    .from('usuarios').select('id').eq('auth_user_id', user!.id).single()
+
   const { dependencias, ...tareaData } = body
+
+  // Calcular fecha_fin correctamente: inicio + duracion - 1
+  if (tareaData.fecha_inicio && tareaData.duracion_dias) {
+    const inicio = new Date(tareaData.fecha_inicio + 'T12:00:00')
+    inicio.setDate(inicio.getDate() + Number(tareaData.duracion_dias) - 1)
+    tareaData.fecha_fin = inicio.toISOString().split('T')[0]
+  }
+
   const { data, error } = await supabaseAdmin
-    .from('tareas').insert({ ...tareaData, created_by: usuario?.id }).select().single()
+    .from('tareas')
+    .insert({ ...tareaData, created_by: usuario?.id })
+    .select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
   if (dependencias?.length) {
     await supabaseAdmin.from('dependencias_tareas').insert(
       dependencias.map((d: string) => ({ tarea_id: data.id, depende_de_id: d }))

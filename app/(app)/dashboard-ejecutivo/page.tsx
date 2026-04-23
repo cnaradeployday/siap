@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react'
 import { Search } from 'lucide-react'
 import StatusBadge from '@/components/shared/StatusBadge'
 import { Proyecto, Usuario, EstadoItem, ESTADO_LABELS } from '@/lib/types'
-import { formatDate, calcularEstadoProyecto } from '@/lib/utils'
+import { formatDate, calcularEstadoProyecto, calcularEstadoReal } from '@/lib/utils'
+
+const ESTADOS: EstadoItem[] = ['pendiente', 'en_proceso', 'bloqueado', 'vencido', 'completado']
 
 export default function DashboardEjecutivoPage() {
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
@@ -34,12 +36,7 @@ export default function DashboardEjecutivoPage() {
   function getEstadoReal(p: Proyecto): EstadoItem {
     const lineas = (p.lineas_accion as any[]) ?? []
     if (!lineas.length) return p.estado
-    const hoy = new Date()
-    const estados = lineas.map((l: any) => {
-      if (l.estado === 'completado') return l.estado
-      if (new Date(l.fecha_fin) < hoy) return 'vencido'
-      return l.estado
-    })
+    const estados = lineas.map((l: any) => calcularEstadoReal(l.estado, l.fecha_fin))
     return calcularEstadoProyecto(estados)
   }
 
@@ -110,9 +107,7 @@ export default function DashboardEjecutivoPage() {
         <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]">
           <option value="">Todos los estados</option>
-          {(['pendiente','en_proceso','bloqueado','vencido','completado'] as EstadoItem[]).map(e => (
-            <option key={e} value={e}>{ESTADO_LABELS[e]}</option>
-          ))}
+          {ESTADOS.map(e => <option key={e} value={e}>{ESTADO_LABELS[e]}</option>)}
         </select>
         <select value={filtroPatrocinador} onChange={e => setFiltroPatrocinador(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]">
@@ -131,7 +126,7 @@ export default function DashboardEjecutivoPage() {
         </select>
       </div>
 
-      {/* Tabla con líneas de acción expandidas */}
+      {/* Tabla con líneas expandidas ordenadas */}
       <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-16">
@@ -148,17 +143,17 @@ export default function DashboardEjecutivoPage() {
                       {l}<SortIcon field={f} />
                     </th>
                   ))}
-                  <th className="px-4 py-3 text-xs font-semibold text-[#1B2A4A] uppercase">Responsable línea</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-[#1B2A4A] uppercase text-left">Responsable línea</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {filtered.map(p => {
-                  const lineas = (p.lineas_accion as any[]) ?? []
+                  const lineas = [...((p.lineas_accion as any[]) ?? [])].sort((a, b) => a.orden - b.orden)
                   return (
                     <>
                       <tr key={p.id} className="hover:bg-[#F0F4F8] bg-[#F8FAFC]">
                         <td className="px-4 py-3 font-semibold text-[#1B2A4A]">{p.nombre}</td>
-                        <td className="px-4 py-3"><StatusBadge estado={p.estadoReal} /></td>
+                        <td className="px-4 py-3"><StatusBadge estado={p.estadoReal} fechaFin={p.fecha_fin} /></td>
                         <td className="px-4 py-3 text-gray-500 text-xs">
                           {(p.patrocinador as any) ? `${(p.patrocinador as any).apellido}, ${(p.patrocinador as any).nombre}` : '-'}
                         </td>
@@ -166,20 +161,26 @@ export default function DashboardEjecutivoPage() {
                         <td className="px-4 py-3 text-gray-500 text-xs">{formatDate(p.fecha_fin)}</td>
                         <td className="px-4 py-3 text-gray-400 text-xs">{lineas.length} línea{lineas.length !== 1 ? 's' : ''}</td>
                       </tr>
-                      {lineas.map((l: any) => (
-                        <tr key={l.id} className="hover:bg-[#F0F4F8] border-l-2 border-[#2B6CB0]">
-                          <td className="px-4 py-2.5 pl-10 text-[#1B2A4A] text-xs flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#2B6CB0] flex-shrink-0" />{l.nombre}
-                          </td>
-                          <td className="px-4 py-2.5"><StatusBadge estado={l.estado} size="sm" /></td>
-                          <td className="px-4 py-2.5 text-gray-400 text-xs">—</td>
-                          <td className="px-4 py-2.5 text-gray-400 text-xs">{formatDate(l.fecha_inicio)}</td>
-                          <td className="px-4 py-2.5 text-gray-400 text-xs">{formatDate(l.fecha_fin)}</td>
-                          <td className="px-4 py-2.5 text-gray-500 text-xs">
-                            {l.responsable ? `${l.responsable.apellido}, ${l.responsable.nombre}` : '-'}
-                          </td>
-                        </tr>
-                      ))}
+                      {lineas.map((l: any) => {
+                        const er = calcularEstadoReal(l.estado, l.fecha_fin)
+                        return (
+                          <tr key={l.id} className="hover:bg-[#F0F4F8] border-l-2 border-[#2B6CB0]">
+                            <td className="px-4 py-2.5 pl-10 text-[#1B2A4A] text-xs">
+                              <span className="font-medium text-[#2B6CB0] mr-1">{['I','II','III'][l.orden-1] ?? l.orden}.</span>
+                              {l.nombre}
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <StatusBadge estado={er} size="sm" />
+                            </td>
+                            <td className="px-4 py-2.5 text-gray-400 text-xs">—</td>
+                            <td className="px-4 py-2.5 text-gray-400 text-xs">{formatDate(l.fecha_inicio)}</td>
+                            <td className="px-4 py-2.5 text-gray-400 text-xs">{formatDate(l.fecha_fin)}</td>
+                            <td className="px-4 py-2.5 text-gray-500 text-xs">
+                              {l.responsable ? `${l.responsable.apellido}, ${l.responsable.nombre}` : '-'}
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </>
                   )
                 })}

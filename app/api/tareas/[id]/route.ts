@@ -11,9 +11,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const { id } = await params
   const body = await req.json()
   const { dependencias, ...tareaData } = body
+
+  if (tareaData.fecha_inicio && tareaData.duracion_dias) {
+    const inicio = new Date(tareaData.fecha_inicio + 'T12:00:00')
+    inicio.setDate(inicio.getDate() + Number(tareaData.duracion_dias) - 1)
+    tareaData.fecha_fin = inicio.toISOString().split('T')[0]
+  }
+
   const { data, error } = await supabaseAdmin
     .from('tareas').update(tareaData).eq('id', id).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
   if (dependencias !== undefined) {
     await supabaseAdmin.from('dependencias_tareas').delete().eq('tarea_id', id)
     if (dependencias.length) {
