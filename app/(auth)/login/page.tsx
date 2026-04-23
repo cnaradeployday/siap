@@ -12,6 +12,7 @@ function LoginContent() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [loginError, setLoginError] = useState('')
+  const [showPass, setShowPass] = useState(false)
 
   const errorMessages: Record<string, string> = {
     sin_acceso: 'Tu cuenta no tiene acceso al sistema. Contactá al administrador.',
@@ -29,48 +30,39 @@ function LoginContent() {
 
   async function handleEmailLogin(e: React.FormEvent) {
     e.preventDefault()
+    if (!email || !password) { setLoginError('Completá email y contraseña'); return }
     setLoading(true)
     setLoginError('')
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    if (authError) {
       setLoginError('Email o contraseña incorrectos')
       setLoading(false)
       return
     }
-    // Verificar que el usuario existe en public.usuarios
     const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      const { data: usuarioApp } = await supabase
-        .from('usuarios')
-        .select('id, activo')
-        .eq('auth_user_id', user.id)
-        .single()
-      if (!usuarioApp) {
-        // Buscar por email y enlazar
-        const { data: porEmail } = await supabase
-          .from('usuarios')
-          .select('id, activo')
-          .eq('email', user.email!)
-          .single()
-        if (porEmail && porEmail.activo) {
-          router.push('/dashboard')
-          return
-        }
+    if (!user) { setLoginError('Error al obtener usuario'); setLoading(false); return }
+
+    const { data: usuarioApp } = await supabase
+      .from('usuarios').select('id, activo').eq('auth_user_id', user.id).single()
+
+    if (!usuarioApp) {
+      const { data: porEmail } = await supabase
+        .from('usuarios').select('id, activo').eq('email', user.email!).single()
+      if (!porEmail || !porEmail.activo) {
         await supabase.auth.signOut()
-        setLoginError('Tu cuenta no tiene acceso al sistema.')
+        setLoginError('Tu cuenta no tiene acceso. Contactá al administrador.')
         setLoading(false)
         return
       }
-      if (!usuarioApp.activo) {
-        await supabase.auth.signOut()
-        setLoginError('Tu cuenta está desactivada.')
-        setLoading(false)
-        return
-      }
-      router.push('/dashboard')
+    } else if (!usuarioApp.activo) {
+      await supabase.auth.signOut()
+      setLoginError('Tu cuenta está desactivada.')
+      setLoading(false)
+      return
     }
-    setLoading(false)
+
+    router.push('/dashboard')
   }
 
   return (
@@ -78,14 +70,9 @@ function LoginContent() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center mb-10">
-          <img
-            src="/logo.png"
-            alt="Ministerio de Economía"
-            className="w-24 h-24 mb-6 object-contain"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none'
-            }}
-          />
+          <img src="/logo.png" alt="Ministerio de Economía"
+            className="w-24 h-24 mb-6 object-contain rounded-full"
+            onError={e => { e.currentTarget.style.display = 'none' }} />
           <h1 className="text-3xl font-bold text-white tracking-tight">SIAP</h1>
           <p className="text-[#C9A84C] text-sm mt-1 tracking-widest uppercase">
             Sistema de Seguimiento de Proyectos
@@ -94,17 +81,15 @@ function LoginContent() {
 
         {/* Card */}
         <div className="bg-white/5 backdrop-blur border border-white/10 rounded-2xl p-8">
-          <h2 className="text-white text-xl font-semibold mb-6">Iniciar sesión</h2>
+          <h2 className="text-white text-xl font-semibold mb-1">Iniciar sesión</h2>
+          <p className="text-white/40 text-sm mb-6">Ingresá con tu email y contraseña</p>
 
           {(error || loginError) && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-              <p className="text-red-400 text-sm">
-                {loginError || errorMessages[error!] || 'Error desconocido'}
-              </p>
+            <div className="mb-5 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+              <p className="text-red-400 text-sm">{loginError || errorMessages[error!] || 'Error desconocido'}</p>
             </div>
           )}
 
-          {/* Email/Password form */}
           <form onSubmit={handleEmailLogin} className="space-y-4 mb-6">
             <div>
               <label className="block text-white/60 text-sm mb-1.5">Email</label>
@@ -114,44 +99,47 @@ function LoginContent() {
                 onChange={e => setEmail(e.target.value)}
                 placeholder="tu@email.com"
                 required
-                className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#C9A84C] transition-colors text-sm"
+                autoComplete="email"
+                className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-[#C9A84C] transition-colors text-sm"
               />
             </div>
             <div>
               <label className="block text-white/60 text-sm mb-1.5">Contraseña</label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#C9A84C] transition-colors text-sm"
-              />
+              <div className="relative">
+                <input
+                  type={showPass ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Tu contraseña"
+                  required
+                  autoComplete="current-password"
+                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 pr-12 text-white placeholder-white/30 focus:outline-none focus:border-[#C9A84C] transition-colors text-sm"
+                />
+                <button type="button" onClick={() => setShowPass(!showPass)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 text-xs">
+                  {showPass ? 'Ocultar' : 'Ver'}
+                </button>
+              </div>
             </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-[#C9A84C] hover:bg-[#b8963e] disabled:opacity-50 text-[#1B2A4A] font-semibold py-3 px-4 rounded-xl transition-all duration-200"
-            >
+            <button type="submit" disabled={loading}
+              className="w-full bg-[#C9A84C] hover:bg-[#b8963e] disabled:opacity-50 text-[#1B2A4A] font-semibold py-3 px-4 rounded-xl transition-all duration-200 text-sm mt-2">
               {loading ? 'Ingresando...' : 'Ingresar'}
             </button>
           </form>
 
           {/* Divider */}
-          <div className="relative mb-6">
+          <div className="relative mb-5">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-white/10" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="px-2 bg-transparent text-white/30">o continuá con</span>
+              <span className="px-3 bg-transparent text-white/30">o continuá con</span>
             </div>
           </div>
 
           {/* Google */}
-          <button
-            onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-gray-800 font-medium py-3 px-4 rounded-xl transition-all duration-200"
-          >
+          <button onClick={handleGoogleLogin}
+            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-gray-800 font-medium py-3 px-4 rounded-xl transition-all duration-200 text-sm">
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
