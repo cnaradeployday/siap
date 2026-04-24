@@ -50,6 +50,18 @@ export async function POST(req: Request) {
   const body = await req.json()
   const { dependencias, ...tareaData } = body
 
+  // Validar máximo 3 tareas por línea de acción
+  if (tareaData.linea_id) {
+    const { count } = await supabaseAdmin
+      .from('tareas')
+      .select('id', { count: 'exact', head: true })
+      .eq('linea_id', tareaData.linea_id)
+      .is('deleted_at', null)
+    if ((count ?? 0) >= 3) {
+      return NextResponse.json({ error: 'Una línea de acción no puede tener más de 3 tareas.' }, { status: 400 })
+    }
+  }
+
   if (tareaData.fecha_inicio && tareaData.duracion_dias) {
     tareaData.fecha_fin = calcFechaFin(tareaData.fecha_inicio, Number(tareaData.duracion_dias))
   }

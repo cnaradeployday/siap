@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { Download, Printer } from 'lucide-react'
+import { Printer, ChevronDown, ChevronRight } from 'lucide-react'
 import { Proyecto, EstadoItem } from '@/lib/types'
 import { formatDate, calcularEstadoReal, calcularEstadoProyecto } from '@/lib/utils'
 import StatusBadge from '@/components/shared/StatusBadge'
@@ -21,6 +21,8 @@ export default function FlujogramaPage() {
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
   const [loading, setLoading] = useState(true)
   const [seleccionados, setSeleccionados] = useState<string[]>([])
+  const [tareasExpandidas, setTareasExpandidas] = useState<Set<string>>(new Set())
+  const [tareasMap, setTareasMap] = useState<Record<string, any[]>>({})
   const printRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -31,6 +33,18 @@ export default function FlujogramaPage() {
       setLoading(false)
     })
   }, [])
+
+  async function toggleTareas(lineaId: string) {
+    if (tareasExpandidas.has(lineaId)) {
+      setTareasExpandidas(prev => { const n = new Set(prev); n.delete(lineaId); return n })
+      return
+    }
+    if (!tareasMap[lineaId]) {
+      const data = await fetch(`/api/tareas?lineaId=${lineaId}`).then(r => r.json())
+      setTareasMap(prev => ({ ...prev, [lineaId]: Array.isArray(data) ? data : [] }))
+    }
+    setTareasExpandidas(prev => new Set([...prev, lineaId]))
+  }
 
   function toggleProyecto(id: string) {
     setSeleccionados(prev =>
@@ -46,7 +60,6 @@ export default function FlujogramaPage() {
 
   return (
     <>
-      {/* Estilos de impresión */}
       <style>{`
         @media print {
           body * { visibility: hidden; }
@@ -100,9 +113,8 @@ export default function FlujogramaPage() {
           <div className="text-center py-16 text-gray-400">Seleccioná al menos un proyecto</div>
         ) : (
           <div id="flujograma-print" className="space-y-8">
-            {/* Header para impresión */}
             <div className="hidden print:block mb-6">
-              <h1 className="text-2xl font-bold text-[#1B2A4A]">SIAP — Flujograma de Proyectos</h1>
+              <h1 className="text-2xl font-bold text-[#1B2A4A]">SIAP — Sistema Administración Proyectos · Flujograma</h1>
               <p className="text-sm text-gray-400">Ministerio de Economía — República Argentina — {new Date().toLocaleDateString('es-AR')}</p>
             </div>
 
@@ -174,6 +186,28 @@ export default function FlujogramaPage() {
                               )}
                               <div className="text-xs text-gray-500">{formatDate(l.fecha_inicio)} → {formatDate(l.fecha_fin)}</div>
                             </div>
+                            <button
+                              onClick={() => toggleTareas(l.id)}
+                              className="mt-3 flex items-center gap-1 text-xs text-[#2B6CB0] hover:underline no-print">
+                              {tareasExpandidas.has(l.id) ? <ChevronDown size={12}/> : <ChevronRight size={12}/>}
+                              Tareas
+                            </button>
+                            {tareasExpandidas.has(l.id) && (
+                              <div className="mt-2 space-y-1">
+                                {(tareasMap[l.id] ?? []).length === 0 ? (
+                                  <p className="text-xs text-gray-400 italic">Sin tareas</p>
+                                ) : (tareasMap[l.id] ?? []).map((t: any) => (
+                                  <div key={t.id} className="flex items-start gap-2 bg-white/70 rounded-lg px-2 py-1.5">
+                                    <span className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${
+                                      t.estado === 'completado' ? 'bg-green-500' :
+                                      t.estado === 'bloqueado' ? 'bg-red-500' :
+                                      t.estado === 'en_proceso' ? 'bg-blue-500' : 'bg-amber-400'
+                                    }`}/>
+                                    <span className="text-xs text-gray-700 leading-tight">{t.nombre}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         )
                       })}

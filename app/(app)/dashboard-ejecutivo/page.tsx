@@ -32,7 +32,7 @@ export default function DashboardEjecutivoPage() {
     const ps = Array.isArray(p) ? p : []
     setProyectos(ps)
     setUsuarios(Array.isArray(u) ? u : [])
-    setExpandidos(new Set(ps.map((x: Proyecto) => x.id)))
+    setExpandidos(new Set()) // colapsado por default
     setLoading(false)
   }
 
@@ -93,13 +93,14 @@ export default function DashboardEjecutivoPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         {[
-          { label: 'Total', value: kpis.total, color: 'bg-[#1B2A4A]', text: 'text-white' },
-          { label: 'En proceso', value: kpis.en_proceso, color: 'bg-blue-50', text: 'text-blue-700' },
-          { label: 'Bloqueados', value: kpis.bloqueado, color: 'bg-red-50', text: 'text-red-700' },
-          { label: 'Vencidos', value: kpis.vencido, color: 'bg-red-100', text: 'text-red-900' },
-          { label: 'Completados', value: kpis.completado, color: 'bg-green-50', text: 'text-green-700' },
+          { label: 'Total', value: kpis.total, color: 'bg-[#1B2A4A]', text: 'text-white', estado: '' },
+          { label: 'En proceso', value: kpis.en_proceso, color: 'bg-blue-50', text: 'text-blue-700', estado: 'en_proceso' },
+          { label: 'Bloqueados', value: kpis.bloqueado, color: 'bg-red-50', text: 'text-red-700', estado: 'bloqueado' },
+          { label: 'Vencidos', value: kpis.vencido, color: 'bg-red-100', text: 'text-red-900', estado: 'vencido' },
+          { label: 'Completados', value: kpis.completado, color: 'bg-green-50', text: 'text-green-700', estado: 'completado' },
         ].map(k => (
-          <div key={k.label} className={`${k.color} rounded-xl p-4`}>
+          <div key={k.label} onClick={() => setFiltroEstado(filtroEstado === k.estado ? '' : k.estado)}
+            className={`${k.color} rounded-xl p-4 cursor-pointer transition-all hover:opacity-80 ${filtroEstado === k.estado && k.estado !== '' ? 'ring-2 ring-offset-1 ring-[#2B6CB0]' : ''}`}>
             <span className={`text-3xl font-bold ${k.text}`}>{k.value}</span>
             <p className={`text-xs mt-1 ${k.text} opacity-70`}>{k.label}</p>
           </div>

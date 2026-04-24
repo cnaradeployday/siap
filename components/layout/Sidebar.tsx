@@ -57,7 +57,8 @@ export default function Sidebar({ usuario }: { usuario: Usuario & { rol?: any } 
                 onError={e => { e.currentTarget.style.display='none' }} />
               <div className="flex-1 min-w-0">
                 <p className="text-white font-bold text-sm leading-tight">SIAP</p>
-                <p className="text-white/40 text-[10px] truncate">Ministerio de Economía</p>
+                <p className="text-white/50 text-[9px] leading-tight">Sistema Administración Proyectos</p>
+                <p className="text-white/30 text-[9px]">v2.1.0 · Ministerio de Economía</p>
               </div>
             </>
           )}
