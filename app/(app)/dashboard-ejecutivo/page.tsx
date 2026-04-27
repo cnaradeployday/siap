@@ -18,6 +18,8 @@ export default function DashboardEjecutivoPage() {
   const [filtroResponsable, setFiltroResponsable] = useState('')
   const [filtroProyecto, setFiltroProyecto] = useState('')
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set())
+  const [tareasExpandidas, setTareasExpandidas] = useState<Set<string>>(new Set())
+  const [tareasMap, setTareasMap] = useState<Record<string, any[]>>({})
   const [sortField, setSortField] = useState('nombre')
   const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc')
 
@@ -32,7 +34,7 @@ export default function DashboardEjecutivoPage() {
     const ps = Array.isArray(p) ? p : []
     setProyectos(ps)
     setUsuarios(Array.isArray(u) ? u : [])
-    setExpandidos(new Set()) // colapsado por default
+    setExpandidos(new Set())
     setLoading(false)
   }
 
@@ -53,11 +55,19 @@ export default function DashboardEjecutivoPage() {
   }
 
   function toggleExpand(id: string) {
-    setExpandidos(prev => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
+    setExpandidos(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })
+  }
+
+  async function toggleTareas(lineaId: string) {
+    if (tareasExpandidas.has(lineaId)) {
+      setTareasExpandidas(prev => { const n = new Set(prev); n.delete(lineaId); return n })
+      return
+    }
+    if (!tareasMap[lineaId]) {
+      const data = await fetch(`/api/tareas?lineaId=${lineaId}`).then(r => r.json())
+      setTareasMap(prev => ({ ...prev, [lineaId]: Array.isArray(data) ? data : [] }))
+    }
+    setTareasExpandidas(prev => new Set([...prev, lineaId]))
   }
 
   function toggleSort(field: string) {
@@ -177,21 +187,58 @@ export default function DashboardEjecutivoPage() {
                       </tr>
                       {expanded && lineas.map((l: any) => {
                         const er = calcularEstadoReal(l.estado, l.fecha_fin)
+                        const tareasAbiertas = tareasExpandidas.has(l.id)
+                        const tareasDeLinea = tareasMap[l.id] ?? []
                         return (
-                          <tr key={l.id} className="hover:bg-[#F0F4F8] border-l-4 border-[#2B6CB0]">
-                            <td className="px-2 py-2.5"></td>
-                            <td className="px-4 py-2.5 text-[#1B2A4A] text-xs">
-                              <span className="font-semibold text-[#2B6CB0] mr-1">{['I','II','III'][l.orden-1] ?? l.orden}.</span>
-                              {l.nombre}
-                            </td>
-                            <td className="px-4 py-2.5"><StatusBadge estado={er} size="sm" /></td>
-                            <td className="px-4 py-2.5 text-gray-400 text-xs">—</td>
-                            <td className="px-4 py-2.5 text-gray-400 text-xs">{formatDate(l.fecha_inicio)}</td>
-                            <td className="px-4 py-2.5 text-gray-400 text-xs">{formatDate(l.fecha_fin)}</td>
-                            <td className="px-4 py-2.5 text-gray-500 text-xs">
-                              {l.responsable ? `${l.responsable.apellido}, ${l.responsable.nombre}` : '-'}
-                            </td>
-                          </tr>
+                          <>
+                            <tr key={l.id} className="hover:bg-[#F0F4F8] border-l-4 border-[#2B6CB0]">
+                              <td className="px-2 py-2.5 text-center text-gray-400">
+                                <button onClick={e => { e.stopPropagation(); toggleTareas(l.id) }}
+                                  className="hover:text-[#2B6CB0] transition-colors">
+                                  {tareasAbiertas ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                                </button>
+                              </td>
+                              <td className="px-4 py-2.5 text-[#1B2A4A] text-xs">
+                                <span className="font-semibold text-[#2B6CB0] mr-1">{['I','II','III'][l.orden-1] ?? l.orden}.</span>
+                                {l.nombre}
+                              </td>
+                              <td className="px-4 py-2.5"><StatusBadge estado={er} size="sm" /></td>
+                              <td className="px-4 py-2.5 text-gray-400 text-xs">—</td>
+                              <td className="px-4 py-2.5 text-gray-400 text-xs">{formatDate(l.fecha_inicio)}</td>
+                              <td className="px-4 py-2.5 text-gray-400 text-xs">{formatDate(l.fecha_fin)}</td>
+                              <td className="px-4 py-2.5 text-gray-500 text-xs">
+                                {l.responsable ? `${l.responsable.apellido}, ${l.responsable.nombre}` : '-'}
+                              </td>
+                            </tr>
+                            {tareasAbiertas && (
+                              tareasDeLinea.length === 0 ? (
+                                <tr key={`${l.id}-empty`} className="border-l-4 border-[#2B6CB0]">
+                                  <td></td>
+                                  <td colSpan={6} className="px-4 py-2 pl-10 text-xs text-gray-400 italic bg-gray-50/50">Sin tareas</td>
+                                </tr>
+                              ) : tareasDeLinea.map((t: any) => (
+                                <tr key={t.id} className="border-l-4 border-[#2B6CB0] bg-white">
+                                  <td></td>
+                                  <td className="px-4 py-2 pl-10 text-xs text-[#1B2A4A]" colSpan={2}>
+                                    <div className="flex items-center gap-2">
+                                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                        t.estado === 'completado' ? 'bg-green-500' :
+                                        t.estado === 'bloqueado' ? 'bg-red-500' :
+                                        t.estado === 'en_proceso' ? 'bg-blue-500' : 'bg-amber-400'
+                                      }`} />
+                                      {t.nombre}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-2 text-xs text-gray-400">—</td>
+                                  <td className="px-4 py-2 text-xs text-gray-400">{formatDate(t.fecha_inicio)}</td>
+                                  <td className="px-4 py-2 text-xs text-gray-400">{formatDate(t.fecha_fin)}</td>
+                                  <td className="px-4 py-2 text-xs text-gray-500">
+                                    {t.responsable ? `${t.responsable.apellido}, ${t.responsable.nombre}` : '-'}
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </>
                         )
                       })}
                     </>

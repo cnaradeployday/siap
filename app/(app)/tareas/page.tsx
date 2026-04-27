@@ -23,7 +23,7 @@ function calcFechaFin(inicio: string, dias: number) {
 }
 
 const emptyForm = {
-  linea_id: '', nombre: '', descripcion: '', metrica_exito: '',
+  proyecto_id: '', linea_id: '', nombre: '', descripcion: '', metrica_exito: '',
   responsable_id: '', fecha_inicio: '', duracion_dias: 1, fecha_fin: '',
   estado: 'pendiente' as EstadoItem, dependencias: [] as string[]
 }
@@ -31,6 +31,8 @@ const emptyForm = {
 export default function TareasPage() {
   const [tareas, setTareas] = useState<any[]>([])
   const [lineas, setLineas] = useState<any[]>([])
+  const [proyectos, setProyectos] = useState<any[]>([])
+  const [lineasFiltradas, setLineasFiltradas] = useState<any[]>([])
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
@@ -53,25 +55,41 @@ export default function TareasPage() {
 
   async function fetchAll() {
     setLoading(true)
-    const [t, l, u] = await Promise.all([
+    const [t, l, u, p] = await Promise.all([
       fetch('/api/tareas').then(r => r.json()),
       fetch('/api/lineas').then(r => r.json()),
       fetch('/api/usuarios').then(r => r.json()),
+      fetch('/api/proyectos').then(r => r.json()),
     ])
     setTareas(Array.isArray(t) ? t : [])
     setLineas(Array.isArray(l) ? l : [])
     setUsuarios(Array.isArray(u) ? u : [])
+    setProyectos(Array.isArray(p) ? p : [])
     setLoading(false)
+  }
+
+  async function onProyectoChange(proyectoId: string) {
+    setForm(f => ({ ...f, proyecto_id: proyectoId, linea_id: '', dependencias: [] }))
+    if (!proyectoId) { setLineasFiltradas([]); return }
+    const data = await fetch(`/api/lineas?proyectoId=${proyectoId}`).then(r => r.json())
+    setLineasFiltradas(Array.isArray(data) ? data : [])
   }
 
   function openNuevo() {
     setEditando(null); setFormError('')
-    setForm(emptyForm); setModalOpen(true)
+    setForm(emptyForm); setLineasFiltradas([]); setModalOpen(true)
   }
 
   function openEditar(t: any) {
     setEditando(t); setFormError('')
+    const proyId = (t.linea as any)?.proyecto?.id ?? ''
+    if (proyId) {
+      fetch(`/api/lineas?proyectoId=${proyId}`).then(r => r.json()).then(data => {
+        setLineasFiltradas(Array.isArray(data) ? data : [])
+      })
+    }
     setForm({
+      proyecto_id: proyId,
       linea_id: t.linea_id, nombre: t.nombre, descripcion: t.descripcion ?? '',
       metrica_exito: t.metrica_exito ?? '', responsable_id: t.responsable_id ?? '',
       fecha_inicio: t.fecha_inicio, duracion_dias: t.duracion_dias, fecha_fin: t.fecha_fin,
@@ -332,15 +350,24 @@ export default function TareasPage() {
         )}
       </div>
 
-      {/* Modal Tarea */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)}
         title={editando ? 'Editar Tarea' : 'Nueva Tarea'} size="lg">
         <div className="space-y-4">
           {formError && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{formError}</div>}
+          <FormField label="Proyecto" required>
+            <Select value={form.proyecto_id} onChange={e => onProyectoChange(e.target.value)} disabled={!!editando}>
+              <option value="">Seleccioná un proyecto</option>
+              {proyectos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+            </Select>
+          </FormField>
           <FormField label="Línea de Acción" required>
-            <Select value={form.linea_id} onChange={e => setForm(f => ({ ...f, linea_id: e.target.value, dependencias: [] }))} disabled={!!editando}>
-              <option value="">Seleccioná una línea</option>
-              {lineas.map(l => <option key={l.id} value={l.id}>{['I','II','III'][(l.orden??1)-1] ?? l.orden}. {l.nombre} — {(l.proyecto as any)?.nombre}</option>)}
+            <Select value={form.linea_id}
+              onChange={e => setForm(f => ({ ...f, linea_id: e.target.value, dependencias: [] }))}
+              disabled={!!editando || !form.proyecto_id}>
+              <option value="">{!form.proyecto_id ? 'Primero seleccioná un proyecto' : 'Seleccioná una línea'}</option>
+              {lineasFiltradas.map(l => (
+                <option key={l.id} value={l.id}>{['I','II','III'][(l.orden??1)-1] ?? l.orden}. {l.nombre}</option>
+              ))}
             </Select>
           </FormField>
           <FormField label="Nombre" required>
@@ -400,7 +427,6 @@ export default function TareasPage() {
         </div>
       </Modal>
 
-      {/* Modal Subtarea */}
       <Modal open={subtareaModalOpen} onClose={() => setSubtareaModalOpen(false)} title="Nueva Subtarea" size="md">
         <div className="space-y-4">
           <FormField label="Nombre" required>
