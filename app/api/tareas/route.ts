@@ -48,7 +48,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const body = await req.json()
-  const { dependencias, ...tareaData } = body
+  const { dependencias, proyecto_id, ...tareaData } = body
 
   // Validar máximo 3 tareas por línea de acción
   if (tareaData.linea_id) {
