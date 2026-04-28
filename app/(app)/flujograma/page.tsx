@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { Printer, ChevronDown, ChevronRight } from 'lucide-react'
-import { Proyecto, EstadoItem } from '@/lib/types'
+import { Proyecto, EstadoItem, Usuario } from '@/lib/types'
 import { formatDate, calcularEstadoReal, calcularEstadoProyecto } from '@/lib/utils'
 import StatusBadge from '@/components/shared/StatusBadge'
 import Btn from '@/components/shared/Btn'
@@ -17,19 +17,32 @@ const ESTADO_BORDER: Record<EstadoItem, string> = {
   completado: 'border-green-400 bg-green-50',
 }
 
+const ESTADO_HEADER: Record<EstadoItem, string> = {
+  pendiente:  'bg-amber-400',
+  en_proceso: 'bg-blue-500',
+  bloqueado:  'bg-red-500',
+  vencido:    'bg-red-700',
+  completado: 'bg-green-500',
+}
+
 export default function FlujogramaPage() {
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
+  const [usuarios, setUsuarios] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [seleccionados, setSeleccionados] = useState<string[]>([])
+  const [filtroPatrocinador, setFiltroPatrocinador] = useState('')
   const [tareasExpandidas, setTareasExpandidas] = useState<Set<string>>(new Set())
   const [tareasMap, setTareasMap] = useState<Record<string, any[]>>({})
-  const printRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetch('/api/proyectos').then(r => r.json()).then(data => {
-      const p = Array.isArray(data) ? data : []
-      setProyectos(p)
-      setSeleccionados(p.map((x: Proyecto) => x.id))
+    Promise.all([
+      fetch('/api/proyectos').then(r => r.json()),
+      fetch('/api/usuarios').then(r => r.json()),
+    ]).then(([p, u]) => {
+      const ps = Array.isArray(p) ? p : []
+      setProyectos(ps)
+      setUsuarios(Array.isArray(u) ? u : [])
+      setSeleccionados([]) // NINGUNO por default
       setLoading(false)
     })
   }, [])
@@ -56,7 +69,9 @@ export default function FlujogramaPage() {
     window.print()
   }
 
-  const proyectosFiltrados = proyectos.filter(p => seleccionados.includes(p.id))
+  const proyectosFiltrados = proyectos
+    .filter(p => seleccionados.includes(p.id))
+    .filter(p => !filtroPatrocinador || p.patrocinador_id === filtroPatrocinador)
 
   return (
     <>
@@ -66,11 +81,12 @@ export default function FlujogramaPage() {
           #flujograma-print, #flujograma-print * { visibility: visible; }
           #flujograma-print { position: absolute; left: 0; top: 0; width: 100%; }
           .no-print { display: none !important; }
+          .print-page-break { page-break-after: always; }
         }
       `}</style>
 
       <div>
-        <div className="flex items-start justify-between mb-1 no-print">
+        <div className="flex items-start justify-between mb-4 no-print">
           <div>
             <h1 className="text-2xl font-bold text-[#1B2A4A]">Flujograma</h1>
             <p className="text-gray-400 text-sm">Visualización de proyectos y sus líneas de acción</p>
@@ -80,152 +96,195 @@ export default function FlujogramaPage() {
           </Btn>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-100 p-4 mb-6 mt-4 no-print">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-medium text-[#1B2A4A]">Filtrar proyectos</p>
-            <div className="flex gap-2">
-              <button onClick={() => setSeleccionados(proyectos.map(p => p.id))}
-                className="text-xs text-[#2B6CB0] hover:underline">Todos</button>
-              <span className="text-gray-300">|</span>
-              <button onClick={() => setSeleccionados([])}
-                className="text-xs text-gray-400 hover:underline">Ninguno</button>
+        <div className="bg-white rounded-xl border border-gray-100 p-4 mb-6 no-print">
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <div className="flex items-center gap-3">
+              <p className="text-sm font-semibold text-[#1B2A4A]">Proyectos</p>
+              <div className="flex gap-2">
+                <button onClick={() => setSeleccionados(proyectos.filter(p => !filtroPatrocinador || p.patrocinador_id === filtroPatrocinador).map(p => p.id))}
+                  className="text-xs text-[#2B6CB0] hover:underline font-medium">Todos</button>
+                <span className="text-gray-300">|</span>
+                <button onClick={() => setSeleccionados([])}
+                  className="text-xs text-gray-400 hover:underline">Ninguno</button>
+              </div>
             </div>
+            <select value={filtroPatrocinador} onChange={e => setFiltroPatrocinador(e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]">
+              <option value="">Todos los patrocinadores</option>
+              {usuarios.map(u => (
+                <option key={u.id} value={u.id}>{u.apellido}, {u.nombre}</option>
+              ))}
+            </select>
           </div>
           <div className="flex flex-wrap gap-2">
-            {proyectos.map(p => (
-              <button key={p.id} onClick={() => toggleProyecto(p.id)}
-                className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-                  seleccionados.includes(p.id)
-                    ? 'bg-[#1B2A4A] text-white border-[#1B2A4A]'
-                    : 'bg-white text-gray-500 border-gray-200 hover:border-[#2B6CB0]'
-                }`}>
-                {p.nombre}
-              </button>
-            ))}
+            {proyectos
+              .filter(p => !filtroPatrocinador || p.patrocinador_id === filtroPatrocinador)
+              .map(p => {
+                const lineas = (p.lineas_accion as any[]) ?? []
+                const estados = lineas.map((l: any) => calcularEstadoReal(l.estado, l.fecha_fin))
+                const estado = lineas.length > 0 ? calcularEstadoProyecto(estados) : p.estado
+                const isSelected = seleccionados.includes(p.id)
+                return (
+                  <button key={p.id} onClick={() => toggleProyecto(p.id)}
+                    className={`text-xs px-3 py-1.5 rounded-full border transition-all flex items-center gap-1.5 ${
+                      isSelected
+                        ? 'bg-[#1B2A4A] text-white border-[#1B2A4A]'
+                        : 'bg-white text-gray-500 border-gray-200 hover:border-[#2B6CB0] hover:text-[#2B6CB0]'
+                    }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                      estado === 'completado' ? 'bg-green-400' :
+                      estado === 'bloqueado' ? 'bg-red-400' :
+                      estado === 'en_proceso' ? 'bg-blue-400' : 'bg-amber-400'
+                    } ${isSelected ? 'opacity-70' : ''}`} />
+                    {p.nombre}
+                  </button>
+                )
+              })}
           </div>
+          {seleccionados.length > 0 && (
+            <p className="text-xs text-gray-400 mt-2">{seleccionados.length} proyecto{seleccionados.length !== 1 ? 's' : ''} seleccionado{seleccionados.length !== 1 ? 's' : ''}</p>
+          )}
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="w-8 h-8 border-2 border-[#2B6CB0] border-t-transparent rounded-full animate-spin" />
           </div>
+        ) : seleccionados.length === 0 ? (
+          <div className="text-center py-20 text-gray-400">
+            <p className="text-4xl mb-3">📋</p>
+            <p className="font-medium text-gray-500">Seleccioná un proyecto para visualizarlo</p>
+            <p className="text-sm mt-1">Usá los filtros de arriba para elegir qué proyectos mostrar</p>
+          </div>
         ) : proyectosFiltrados.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">Seleccioná al menos un proyecto</div>
+          <div className="text-center py-16 text-gray-400">No hay proyectos que coincidan con el filtro</div>
         ) : (
-          <div id="flujograma-print" className="space-y-8">
-            <div className="hidden print:block mb-6">
-              <h1 className="text-2xl font-bold text-[#1B2A4A]">SIAP — Sistema Administración Proyectos · Flujograma</h1>
-              <p className="text-sm text-gray-400">Ministerio de Economía — República Argentina — {new Date().toLocaleDateString('es-AR')}</p>
-            </div>
-
-            {proyectosFiltrados.map(p => {
+          <div id="flujograma-print" className="space-y-0">
+            {proyectosFiltrados.map((p, idx) => {
               const lineas = [...((p.lineas_accion as any[]) ?? [])].sort((a, b) => a.orden - b.orden)
               const estadosLineas = lineas.map((l: any) => calcularEstadoReal(l.estado, l.fecha_fin))
               const estadoProyecto = lineas.length > 0 ? calcularEstadoProyecto(estadosLineas) : p.estado
-              const completadas = lineas.filter((l: any) => calcularEstadoReal(l.estado, l.fecha_fin) === 'completado').length
 
               return (
-                <div key={p.id} className="bg-white rounded-xl border border-gray-200 p-6">
-                  <div className="mb-4">
-                    <div className="flex items-start justify-between flex-wrap gap-2">
-                      <h2 className="text-lg font-bold text-[#1B2A4A]">{p.nombre}</h2>
-                      <StatusBadge estado={estadoProyecto} fechaFin={p.fecha_fin} size="md" />
+                <div key={p.id} className={`print-page-break ${idx > 0 ? 'mt-8 print:mt-0' : ''}`}>
+                  {/* Header impresión por proyecto */}
+                  <div className="hidden print:flex print:items-center print:justify-between print:mb-6 print:pb-3 print:border-b-2 print:border-[#1B2A4A]">
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase tracking-widest">Sistema Administración Proyectos</p>
+                      <h1 className="text-xl font-bold text-[#1B2A4A]">Flujograma</h1>
                     </div>
-                    <div className="flex items-center gap-4 mt-1 flex-wrap text-xs text-gray-400">
-                      <span>{formatDate(p.fecha_inicio)} → {formatDate(p.fecha_fin)}</span>
+                    <img src="/logo.png" alt="Logo" className="h-12 w-auto object-contain" />
+                  </div>
+
+                  <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+                    {/* Header del proyecto coloreado */}
+                    <div className={`${ESTADO_HEADER[estadoProyecto] ?? 'bg-gray-400'} px-6 py-4`}>
+                      <div className="flex items-start justify-between flex-wrap gap-2">
+                        <div>
+                          <p className="text-white/70 text-xs uppercase tracking-wider font-medium mb-0.5">Proyecto</p>
+                          <h2 className="text-xl font-bold text-white leading-tight">{p.nombre}</h2>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="bg-white/20 text-white text-xs font-semibold px-3 py-1 rounded-full backdrop-blur-sm">
+                            {estadoProyecto === 'en_proceso' ? 'En proceso' :
+                             estadoProyecto === 'completado' ? 'Completado' :
+                             estadoProyecto === 'bloqueado' ? 'Bloqueado' :
+                             estadoProyecto === 'vencido' ? 'Vencido' : 'Pendiente'}
+                          </span>
+                          <span className="text-white/60 text-xs">{formatDate(p.fecha_inicio)} → {formatDate(p.fecha_fin)}</span>
+                        </div>
+                      </div>
                       {(p.patrocinador as any) && (
-                        <span>Patrocinador: {(p.patrocinador as any).apellido}, {(p.patrocinador as any).nombre}</span>
+                        <p className="text-white/70 text-xs mt-2">
+                          Patrocinador: <span className="text-white font-medium">{(p.patrocinador as any).apellido}, {(p.patrocinador as any).nombre}</span>
+                        </p>
                       )}
                     </div>
+
+                    {/* Descripción y variable de éxito */}
                     {(p.descripcion || p.metrica_exito) && (
-                      <div className="mt-3 grid md:grid-cols-2 gap-3">
+                      <div className="px-6 py-3 bg-gray-50 border-b border-gray-100 grid md:grid-cols-2 gap-4">
                         {p.descripcion && (
-                          <div className="bg-[#F0F4F8] rounded-lg px-3 py-2">
-                            <p className="text-xs font-semibold text-[#1B2A4A] mb-0.5">Descripción</p>
-                            <p className="text-xs text-gray-600">{p.descripcion}</p>
+                          <div>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Descripción</p>
+                            <p className="text-sm text-gray-700">{p.descripcion}</p>
                           </div>
                         )}
                         {p.metrica_exito && (
-                          <div className="bg-[#F0F4F8] rounded-lg px-3 py-2">
-                            <p className="text-xs font-semibold text-[#1B2A4A] mb-0.5">Variable de éxito</p>
-                            <p className="text-xs text-gray-600">{p.metrica_exito}</p>
+                          <div>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Variable de éxito</p>
+                            <p className="text-sm text-gray-700">{p.metrica_exito}</p>
                           </div>
                         )}
                       </div>
                     )}
-                  </div>
 
-                  {lineas.length === 0 ? (
-                    <p className="text-gray-300 text-sm italic">Sin líneas de acción</p>
-                  ) : (
-                    <div className="grid gap-4 md:grid-cols-3 mt-2">
-                      {lineas.map((l: any) => {
-                        const er = calcularEstadoReal(l.estado, l.fecha_fin)
-                        const nro = NRO_LINEA[l.orden - 1] ?? l.orden
-                        return (
-                          <div key={l.id} className={`rounded-xl border-2 p-4 ${ESTADO_BORDER[er] ?? 'border-gray-200 bg-gray-50'}`}>
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-xs font-bold text-[#1B2A4A] uppercase tracking-wider">
-                                Línea {nro}
-                              </span>
-                              <StatusBadge estado={er} size="sm" />
-                            </div>
-                            <h3 className="font-semibold text-[#1B2A4A] text-sm mb-1">{l.nombre}</h3>
-                            {l.descripcion && <p className="text-xs text-gray-500 mb-1">{l.descripcion}</p>}
-                            {l.metrica_exito && <p className="text-xs text-gray-400 italic mb-2">✓ {l.metrica_exito}</p>}
-                            <div className="space-y-1 mt-2">
-                              {l.responsable && (
-                                <div className="flex items-center gap-2">
-                                  <div className="w-5 h-5 rounded-full bg-[#1B2A4A] flex items-center justify-center flex-shrink-0">
-                                    <span className="text-white text-[8px] font-bold">
-                                      {l.responsable.nombre[0]}{l.responsable.apellido[0]}
-                                    </span>
-                                  </div>
-                                  <span className="text-xs text-gray-600">{l.responsable.apellido}, {l.responsable.nombre}</span>
+                    {/* Líneas */}
+                    <div className="p-6">
+                      {lineas.length === 0 ? (
+                        <p className="text-gray-300 text-sm italic">Sin líneas de acción</p>
+                      ) : (
+                        <div className="grid gap-4 md:grid-cols-3">
+                          {lineas.map((l: any) => {
+                            const er = calcularEstadoReal(l.estado, l.fecha_fin)
+                            const nro = NRO_LINEA[l.orden - 1] ?? l.orden
+                            return (
+                              <div key={l.id} className={`rounded-xl border-2 overflow-hidden ${ESTADO_BORDER[er] ?? 'border-gray-200 bg-gray-50'}`}>
+                                <div className="px-4 pt-3 pb-2 flex items-center justify-between">
+                                  <span className="text-[10px] font-black text-[#1B2A4A] uppercase tracking-widest">LÍNEA {nro}</span>
+                                  <StatusBadge estado={er} size="sm" />
                                 </div>
-                              )}
-                              <div className="text-xs text-gray-500">{formatDate(l.fecha_inicio)} → {formatDate(l.fecha_fin)}</div>
-                            </div>
-                            <button
-                              onClick={() => toggleTareas(l.id)}
-                              className="mt-3 flex items-center gap-1 text-xs text-[#2B6CB0] hover:underline no-print">
-                              {tareasExpandidas.has(l.id) ? <ChevronDown size={12}/> : <ChevronRight size={12}/>}
-                              Tareas
-                            </button>
-                            {tareasExpandidas.has(l.id) && (
-                              <div className="mt-2 space-y-1">
-                                {(tareasMap[l.id] ?? []).length === 0 ? (
-                                  <p className="text-xs text-gray-400 italic">Sin tareas</p>
-                                ) : (tareasMap[l.id] ?? []).map((t: any) => (
-                                  <div key={t.id} className="flex items-start gap-2 bg-white/70 rounded-lg px-2 py-1.5">
-                                    <span className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${
-                                      t.estado === 'completado' ? 'bg-green-500' :
-                                      t.estado === 'bloqueado' ? 'bg-red-500' :
-                                      t.estado === 'en_proceso' ? 'bg-blue-500' : 'bg-amber-400'
-                                    }`}/>
-                                    <span className="text-xs text-gray-700 leading-tight">{t.nombre}</span>
+                                <div className="px-4 pb-4">
+                                  <h3 className="font-bold text-[#1B2A4A] text-sm mb-2 leading-snug">{l.nombre}</h3>
+                                  {l.descripcion && <p className="text-xs text-gray-500 mb-1">{l.descripcion}</p>}
+                                  {l.metrica_exito && (
+                                    <p className="text-xs text-gray-400 italic mb-2 flex items-start gap-1">
+                                      <span>✓</span><span>{l.metrica_exito}</span>
+                                    </p>
+                                  )}
+                                  <div className="space-y-1.5 mt-3 pt-3 border-t border-black/5">
+                                    {l.responsable && (
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-5 h-5 rounded-full bg-[#1B2A4A] flex items-center justify-center flex-shrink-0">
+                                          <span className="text-white text-[8px] font-bold">
+                                            {l.responsable.nombre[0]}{l.responsable.apellido[0]}
+                                          </span>
+                                        </div>
+                                        <span className="text-xs text-gray-600">{l.responsable.apellido}, {l.responsable.nombre}</span>
+                                      </div>
+                                    )}
+                                    <div className="text-xs text-gray-400">{formatDate(l.fecha_inicio)} → {formatDate(l.fecha_fin)}</div>
                                   </div>
-                                ))}
+                                  <button
+                                    onClick={() => toggleTareas(l.id)}
+                                    className="mt-3 flex items-center gap-1 text-xs text-[#2B6CB0] hover:underline no-print">
+                                    {tareasExpandidas.has(l.id) ? <ChevronDown size={12}/> : <ChevronRight size={12}/>}
+                                    Tareas
+                                  </button>
+                                  {tareasExpandidas.has(l.id) && (
+                                    <div className="mt-2 space-y-1">
+                                      {(tareasMap[l.id] ?? []).length === 0 ? (
+                                        <p className="text-xs text-gray-400 italic">Sin tareas</p>
+                                      ) : (tareasMap[l.id] ?? []).map((t: any) => (
+                                        <div key={t.id} className="flex items-start gap-2 bg-white/70 rounded-lg px-2 py-1.5">
+                                          <span className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${
+                                            t.estado === 'completado' ? 'bg-green-500' :
+                                            t.estado === 'bloqueado' ? 'bg-red-500' :
+                                            t.estado === 'en_proceso' ? 'bg-blue-500' : 'bg-amber-400'
+                                          }`}/>
+                                          <span className="text-xs text-gray-700 leading-tight">{t.nombre}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                            )}
-                          </div>
-                        )
-                      })}
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
-                  )}
-
-                  {lineas.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-gray-100">
-                      <div className="flex items-center justify-between text-xs text-gray-400 mb-1.5">
-                        <span>{completadas}/{lineas.length} líneas completadas</span>
-                        <span>{Math.round((completadas / lineas.length) * 100)}%</span>
-                      </div>
-                      <div className="bg-gray-100 rounded-full h-1.5">
-                        <div className="bg-[#1B2A4A] h-1.5 rounded-full"
-                          style={{ width: `${(completadas / lineas.length) * 100}%` }} />
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </div>
               )
             })}
