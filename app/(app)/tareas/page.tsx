@@ -44,7 +44,7 @@ export default function TareasPage() {
   const [filtroLinea, setFiltroLinea] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('')
   const [filtroResponsable, setFiltroResponsable] = useState('')
-  const [sortField, setSortField] = useState('nombre')
+  const [sortField, setSortField] = useState('orden')
   const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc')
   const [expandidas, setExpandidas] = useState<Set<string>>(new Set())
   const [formError, setFormError] = useState('')
@@ -195,7 +195,10 @@ export default function TareasPage() {
     })
     .sort((a, b) => {
       const av = (a as any)[sortField] ?? ''; const bv = (b as any)[sortField] ?? ''
-      return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av))
+      const numA = Number(av); const numB = Number(bv)
+      const isNum = !isNaN(numA) && !isNaN(numB)
+      const cmp = isNum ? numA - numB : String(av).localeCompare(String(bv))
+      return sortDir === 'asc' ? cmp : -cmp
     })
 
   const tareasDisponiblesParaDep = tareas.filter(t =>

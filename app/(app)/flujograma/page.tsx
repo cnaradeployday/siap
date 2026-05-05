@@ -266,14 +266,14 @@ export default function FlujogramaPage() {
                                     <div className="mt-2 space-y-1">
                                       {(tareasMap[l.id] ?? []).length === 0 ? (
                                         <p className="text-xs text-gray-400 italic">Sin tareas</p>
-                                      ) : (tareasMap[l.id] ?? []).map((t: any) => (
+                                      ) : (tareasMap[l.id] ?? []).map((t: any, idx: number) => (
                                         <div key={t.id} className="flex items-start gap-2 bg-white/70 rounded-lg px-2 py-1.5">
                                           <span className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${
                                             t.estado === 'completado' ? 'bg-green-500' :
                                             t.estado === 'bloqueado' || calcularEstadoReal(t.estado, t.fecha_fin) === 'vencido' ? 'bg-red-500' :
                                             t.estado === 'en_proceso' ? 'bg-blue-500' : 'bg-gray-400'
                                           }`}/>
-                                          <span className="text-xs text-gray-500 font-medium flex-shrink-0">{t.orden}.</span>
+                                          <span className="text-xs text-gray-500 font-medium flex-shrink-0">{idx + 1}.</span>
                                           <span className="text-xs text-gray-700 leading-tight">{t.nombre}</span>
                                         </div>
                                       ))}
