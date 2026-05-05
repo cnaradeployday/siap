@@ -155,14 +155,14 @@ export const ESTADO_LABELS: Record<EstadoItem, string> = {
   pendiente: 'Pendiente de iniciar',
   en_proceso: 'En proceso',
   bloqueado: 'Bloqueado',
-  vencido: 'Vencido',
+  vencido: 'Demorado',
   completado: 'Completado',
 }
 
 export const ESTADO_COLORS: Record<EstadoItem, { bg: string; text: string; dot: string }> = {
-  pendiente:  { bg: 'bg-amber-100',  text: 'text-amber-800',  dot: 'bg-amber-500'  },
+  pendiente:  { bg: 'bg-gray-100',   text: 'text-gray-600',   dot: 'bg-gray-400'   },
   en_proceso: { bg: 'bg-blue-100',   text: 'text-blue-800',   dot: 'bg-blue-500'   },
   bloqueado:  { bg: 'bg-red-100',    text: 'text-red-800',    dot: 'bg-red-500'    },
-  vencido:    { bg: 'bg-red-200',    text: 'text-red-900',    dot: 'bg-red-700'    },
+  vencido:    { bg: 'bg-red-100',    text: 'text-red-800',    dot: 'bg-red-500'    },
   completado: { bg: 'bg-green-100',  text: 'text-green-800',  dot: 'bg-green-500'  },
 }

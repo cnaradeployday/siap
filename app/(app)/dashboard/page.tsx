@@ -41,6 +41,12 @@ export default function DashboardDirectivoPage() {
 
   const proyectosConEstado = proyectos.map(p => ({ ...p, estadoReal: getEstadoReal(p) }))
 
+  const patrocinadores = proyectos
+    .filter(p => p.patrocinador_id && (p.patrocinador as any))
+    .map(p => p.patrocinador as any)
+    .filter((u: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === u.id) === i)
+    .sort((a: any, b: any) => a.apellido.localeCompare(b.apellido))
+
   const kpis = {
     total: proyectosConEstado.length,
     en_proceso: proyectosConEstado.filter(p => p.estadoReal === 'en_proceso').length,
@@ -84,9 +90,9 @@ export default function DashboardDirectivoPage() {
         {[
           { label: 'Total', value: kpis.total, color: 'bg-[#1B2A4A]', text: 'text-white', estado: '' },
           { label: 'En proceso', value: kpis.en_proceso, color: 'bg-blue-50', text: 'text-blue-700', estado: 'en_proceso' },
-          { label: 'Pendientes', value: kpis.pendiente, color: 'bg-amber-50', text: 'text-amber-700', estado: 'pendiente' },
+          { label: 'Pendientes', value: kpis.pendiente, color: 'bg-gray-50', text: 'text-gray-600', estado: 'pendiente' },
           { label: 'Bloqueados', value: kpis.bloqueado, color: 'bg-red-50', text: 'text-red-700', estado: 'bloqueado' },
-          { label: 'Vencidos', value: kpis.vencido, color: 'bg-red-100', text: 'text-red-900', estado: 'vencido' },
+          { label: 'Demorados', value: kpis.vencido, color: 'bg-red-100', text: 'text-red-900', estado: 'vencido' },
           { label: 'Completados', value: kpis.completado, color: 'bg-green-50', text: 'text-green-700', estado: 'completado' },
         ].map(k => (
           <div key={k.label} onClick={() => setFiltroEstado(filtroEstado === k.estado ? '' : k.estado)}
@@ -112,7 +118,7 @@ export default function DashboardDirectivoPage() {
         <select value={filtroPatrocinador} onChange={e => setFiltroPatrocinador(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]">
           <option value="">Todos los patrocinadores</option>
-          {usuarios.map(u => <option key={u.id} value={u.id}>{u.apellido}, {u.nombre}</option>)}
+          {patrocinadores.map((u: any) => <option key={u.id} value={u.id}>{u.apellido}, {u.nombre}</option>)}
         </select>
         <select value={filtroProyecto} onChange={e => setFiltroProyecto(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]">
@@ -164,7 +170,7 @@ export default function DashboardDirectivoPage() {
                                 er === 'completado' ? 'bg-green-100 text-green-700' :
                                 er === 'bloqueado' || er === 'vencido' ? 'bg-red-100 text-red-700' :
                                 er === 'en_proceso' ? 'bg-blue-100 text-blue-700' :
-                                'bg-amber-100 text-amber-700'}`}>
+                                'bg-gray-100 text-gray-600'}`}>
                                 {['I','II','III'][l.orden - 1] ?? l.orden}. {l.nombre}
                               </span>
                             )

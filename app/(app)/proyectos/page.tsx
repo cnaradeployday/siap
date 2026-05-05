@@ -84,6 +84,12 @@ export default function ProyectosPage() {
     else { setSortField(field); setSortDir('asc') }
   }
 
+  const patrocinadores = proyectos
+    .filter(p => p.patrocinador_id && (p.patrocinador as any))
+    .map(p => p.patrocinador as any)
+    .filter((u: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === u.id) === i)
+    .sort((a: any, b: any) => a.apellido.localeCompare(b.apellido))
+
   const filtered = proyectos
     .filter(p => {
       const q = search.toLowerCase()
@@ -127,7 +133,7 @@ export default function ProyectosPage() {
         <select value={filtroPatrocinador} onChange={e => setFiltroPatrocinador(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]">
           <option value="">Todos los patrocinadores</option>
-          {usuarios.map(u => <option key={u.id} value={u.id}>{u.apellido}, {u.nombre}</option>)}
+          {patrocinadores.map((u: any) => <option key={u.id} value={u.id}>{u.apellido}, {u.nombre}</option>)}
         </select>
       </div>
 

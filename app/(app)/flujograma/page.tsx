@@ -10,24 +10,23 @@ import Btn from '@/components/shared/Btn'
 const NRO_LINEA = ['I', 'II', 'III']
 
 const ESTADO_BORDER: Record<EstadoItem, string> = {
-  pendiente:  'border-amber-300 bg-amber-50',
+  pendiente:  'border-gray-300 bg-gray-50',
   en_proceso: 'border-blue-300 bg-blue-50',
   bloqueado:  'border-red-400 bg-red-50',
-  vencido:    'border-red-600 bg-red-100',
+  vencido:    'border-red-400 bg-red-50',
   completado: 'border-green-400 bg-green-50',
 }
 
 const ESTADO_HEADER: Record<EstadoItem, string> = {
-  pendiente:  'bg-amber-400',
+  pendiente:  'bg-gray-400',
   en_proceso: 'bg-blue-500',
   bloqueado:  'bg-red-500',
-  vencido:    'bg-red-700',
+  vencido:    'bg-red-500',
   completado: 'bg-green-500',
 }
 
 export default function FlujogramaPage() {
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
-  const [usuarios, setUsuarios] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [seleccionados, setSeleccionados] = useState<string[]>([])
   const [filtroPatrocinador, setFiltroPatrocinador] = useState('')
@@ -35,17 +34,19 @@ export default function FlujogramaPage() {
   const [tareasMap, setTareasMap] = useState<Record<string, any[]>>({})
 
   useEffect(() => {
-    Promise.all([
-      fetch('/api/proyectos').then(r => r.json()),
-      fetch('/api/usuarios').then(r => r.json()),
-    ]).then(([p, u]) => {
+    fetch('/api/proyectos').then(r => r.json()).then(p => {
       const ps = Array.isArray(p) ? p : []
       setProyectos(ps)
-      setUsuarios(Array.isArray(u) ? u : [])
-      setSeleccionados([]) // NINGUNO por default
+      setSeleccionados([])
       setLoading(false)
     })
   }, [])
+
+  const patrocinadores = proyectos
+    .filter(p => p.patrocinador_id && (p.patrocinador as any))
+    .map(p => p.patrocinador as any)
+    .filter((u, i, arr) => arr.findIndex((x: any) => x.id === u.id) === i)
+    .sort((a: any, b: any) => a.apellido.localeCompare(b.apellido))
 
   async function toggleTareas(lineaId: string) {
     if (tareasExpandidas.has(lineaId)) {
@@ -111,7 +112,7 @@ export default function FlujogramaPage() {
             <select value={filtroPatrocinador} onChange={e => setFiltroPatrocinador(e.target.value)}
               className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]">
               <option value="">Todos los patrocinadores</option>
-              {usuarios.map(u => (
+              {patrocinadores.map((u: any) => (
                 <option key={u.id} value={u.id}>{u.apellido}, {u.nombre}</option>
               ))}
             </select>
@@ -133,8 +134,8 @@ export default function FlujogramaPage() {
                     }`}>
                     <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                       estado === 'completado' ? 'bg-green-400' :
-                      estado === 'bloqueado' ? 'bg-red-400' :
-                      estado === 'en_proceso' ? 'bg-blue-400' : 'bg-amber-400'
+                      estado === 'bloqueado' || estado === 'vencido' ? 'bg-red-400' :
+                      estado === 'en_proceso' ? 'bg-blue-400' : 'bg-gray-400'
                     } ${isSelected ? 'opacity-70' : ''}`} />
                     {p.nombre}
                   </button>
@@ -189,7 +190,7 @@ export default function FlujogramaPage() {
                             {estadoProyecto === 'en_proceso' ? 'En proceso' :
                              estadoProyecto === 'completado' ? 'Completado' :
                              estadoProyecto === 'bloqueado' ? 'Bloqueado' :
-                             estadoProyecto === 'vencido' ? 'Vencido' : 'Pendiente'}
+                             estadoProyecto === 'vencido' ? 'Demorado' : 'Pendiente'}
                           </span>
                           <span className="text-white/60 text-xs">{formatDate(p.fecha_inicio)} → {formatDate(p.fecha_fin)}</span>
                         </div>
@@ -269,9 +270,10 @@ export default function FlujogramaPage() {
                                         <div key={t.id} className="flex items-start gap-2 bg-white/70 rounded-lg px-2 py-1.5">
                                           <span className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${
                                             t.estado === 'completado' ? 'bg-green-500' :
-                                            t.estado === 'bloqueado' ? 'bg-red-500' :
-                                            t.estado === 'en_proceso' ? 'bg-blue-500' : 'bg-amber-400'
+                                            t.estado === 'bloqueado' || calcularEstadoReal(t.estado, t.fecha_fin) === 'vencido' ? 'bg-red-500' :
+                                            t.estado === 'en_proceso' ? 'bg-blue-500' : 'bg-gray-400'
                                           }`}/>
+                                          <span className="text-xs text-gray-500 font-medium flex-shrink-0">{t.orden}.</span>
                                           <span className="text-xs text-gray-700 leading-tight">{t.nombre}</span>
                                         </div>
                                       ))}
