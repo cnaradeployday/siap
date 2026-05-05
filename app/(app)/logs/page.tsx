@@ -27,9 +27,15 @@ export default function LogsPage() {
     if (filtroTabla) params.set('tabla', filtroTabla)
     if (filtroAccion) params.set('accion', filtroAccion)
     const res = await fetch(`/api/logs?${params}`)
-    const data = await res.json()
-    setLogs(data.data ?? [])
-    setTotal(data.total ?? 0)
+    const json = await res.json()
+    if (!res.ok) {
+      console.error('Logs error:', json.error)
+      setLogs([])
+      setTotal(0)
+    } else {
+      setLogs(json.data ?? [])
+      setTotal(json.total ?? 0)
+    }
     setLoading(false)
   }
 

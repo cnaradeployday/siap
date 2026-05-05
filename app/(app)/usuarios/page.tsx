@@ -143,7 +143,7 @@ export default function UsuariosPage() {
     const data = await fetch(`/api/usuarios/${u.id}/proyectos`).then(r => r.json())
     const todos = Array.isArray(data) ? data : []
     setProyectosTodos(todos)
-    const asignados = new Set<string>(todos.filter((p: any) => p.patrocinador_id === u.id).map((p: any) => p.id))
+    const asignados = new Set<string>(todos.filter((p: any) => p.asignado).map((p: any) => p.id))
     setProyectosAsignados(asignados)
     setProyectosAsignadosOrig(new Set(asignados))
     setProyectosModalOpen(true)
@@ -404,16 +404,16 @@ export default function UsuariosPage() {
 
       {/* Modal Proyectos */}
       <Modal open={proyectosModalOpen} onClose={() => setProyectosModalOpen(false)}
-        title={`Proyectos de ${editando?.nombre} ${editando?.apellido}`} size="md">
+        title={`Proyectos visibles — ${editando?.nombre} ${editando?.apellido}`} size="md">
         <div className="space-y-4">
           <p className="text-sm text-gray-500">
-            Seleccioná los proyectos que este usuario puede ver. El usuario quedará asignado como patrocinador de los proyectos seleccionados.
+            Seleccioná qué proyectos puede ver este usuario. Esto <strong>no modifica</strong> el patrocinador de los proyectos.
           </p>
           {proyectosTodos.length === 0 ? (
             <p className="text-sm text-gray-400 italic text-center py-4">No hay proyectos en el sistema</p>
           ) : (
             <div className="border border-gray-200 rounded-lg max-h-72 overflow-y-auto divide-y divide-gray-50">
-              {proyectosTodos.map(p => (
+              {proyectosTodos.map((p: any) => (
                 <label key={p.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer">
                   <input
                     type="checkbox"
@@ -422,8 +422,10 @@ export default function UsuariosPage() {
                     className="rounded border-gray-300 text-[#2B6CB0]"
                   />
                   <span className="text-sm text-[#1B2A4A] flex-1">{p.nombre}</span>
-                  {p.patrocinador_id && p.patrocinador_id !== editando?.id && (
-                    <span className="text-xs text-gray-400 italic">otro patrocinador</span>
+                  {p.patrocinador && (
+                    <span className="text-xs text-gray-400">
+                      {(p.patrocinador as any).apellido}, {(p.patrocinador as any).nombre}
+                    </span>
                   )}
                 </label>
               ))}
