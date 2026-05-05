@@ -46,9 +46,19 @@ export async function GET(req: Request) {
   return NextResponse.json(data ?? [])
 }
 
+function nullifyEmptyUUIDs(obj: Record<string, any>) {
+  const uuidFields = ['responsable_id', 'linea_id', 'created_by']
+  const result = { ...obj }
+  for (const f of uuidFields) {
+    if (f in result && (result[f] === '' || result[f] === undefined)) result[f] = null
+  }
+  return result
+}
+
 export async function POST(req: Request) {
   const body = await req.json()
-  const { dependencias, proyecto_id, ...tareaData } = body
+  const { dependencias, proyecto_id, ...rawData } = body
+  const tareaData = nullifyEmptyUUIDs(rawData)
 
   // Validar máximo 3 tareas por línea de acción
   if (tareaData.linea_id) {

@@ -9,6 +9,10 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: Request) {
   const body = await req.json()
+  const uuidFields = ['responsable_id', 'tarea_id', 'depende_de_id']
+  for (const f of uuidFields) {
+    if (f in body && (body[f] === '' || body[f] === undefined)) body[f] = null
+  }
   const { data, error } = await supabaseAdmin.from('subtareas').insert(body).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json(data)

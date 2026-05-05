@@ -13,10 +13,20 @@ function calcFechaFin(fechaInicio: string, duracionDias: number): string {
   return d.toISOString().split('T')[0]
 }
 
+function nullifyEmptyUUIDs(obj: Record<string, any>) {
+  const uuidFields = ['responsable_id', 'linea_id', 'created_by']
+  const result = { ...obj }
+  for (const f of uuidFields) {
+    if (f in result && (result[f] === '' || result[f] === undefined)) result[f] = null
+  }
+  return result
+}
+
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const body = await req.json()
-  const { dependencias, ...tareaData } = body
+  const { dependencias, ...rawData } = body
+  const tareaData = nullifyEmptyUUIDs(rawData)
 
   if (tareaData.fecha_inicio && tareaData.duracion_dias) {
     tareaData.fecha_fin = calcFechaFin(tareaData.fecha_inicio, Number(tareaData.duracion_dias))

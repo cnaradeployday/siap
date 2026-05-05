@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { createClient as createUserClient } from '@/lib/supabase/server'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -7,7 +8,21 @@ const supabaseAdmin = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 )
 
+async function getUsuarioActual() {
+  try {
+    const supabase = await createUserClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return null
+    const { data } = await supabaseAdmin
+      .from('usuarios').select('id,is_admin').eq('auth_user_id', user.id).single()
+    return data
+  } catch {
+    return null
+  }
+}
+
 export async function GET() {
+  const usuarioActual = await getUsuarioActual()
   const { data, error } = await supabaseAdmin
     .from('proyectos')
     .select(`
@@ -22,7 +37,7 @@ export async function GET() {
     .order('created_at', { ascending: false })
 
   // También traer proyectos sin líneas
-  const { data: dataAll, error: errorAll } = await supabaseAdmin
+  let queryAll = supabaseAdmin
     .from('proyectos')
     .select(`
       *,
@@ -34,6 +49,13 @@ export async function GET() {
     `)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
+
+  // Si el usuario no es admin, solo ver sus proyectos asignados (donde es patrocinador)
+  if (usuarioActual && !usuarioActual.is_admin) {
+    queryAll = queryAll.eq('patrocinador_id', usuarioActual.id)
+  }
+
+  const { data: dataAll, error: errorAll } = await queryAll
 
   if (errorAll) return NextResponse.json({ error: errorAll.message }, { status: 400 })
 

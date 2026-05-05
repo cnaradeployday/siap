@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, Pencil, Link, Search, UserCheck, UserX, Key } from 'lucide-react'
+import { Plus, Pencil, Link, Search, UserCheck, UserX, Key, FolderOpen } from 'lucide-react'
 import PageHeader from '@/components/shared/PageHeader'
 import EmptyState from '@/components/shared/EmptyState'
 import Modal from '@/components/shared/Modal'
@@ -29,6 +29,11 @@ export default function UsuariosPage() {
   const [passNueva, setPassNueva] = useState('')
   const [passMsg, setPassMsg] = useState('')
   const [formError, setFormError] = useState('')
+  const [proyectosModalOpen, setProyectosModalOpen] = useState(false)
+  const [proyectosTodos, setProyectosTodos] = useState<{id:string,nombre:string,patrocinador_id:string|null}[]>([])
+  const [proyectosAsignados, setProyectosAsignados] = useState<Set<string>>(new Set())
+  const [proyectosAsignadosOrig, setProyectosAsignadosOrig] = useState<Set<string>>(new Set())
+  const [savingProyectos, setSavingProyectos] = useState(false)
 
   const [form, setForm] = useState({
     nombre: '', apellido: '', email: '', password_provisoria: '',
@@ -131,6 +136,40 @@ export default function UsuariosPage() {
     })
     setPassMsg(res.ok ? '✓ Contraseña actualizada' : 'Error al actualizar')
     setSaving(false)
+  }
+
+  async function openProyectos(u: Usuario) {
+    setEditando(u)
+    const data = await fetch(`/api/usuarios/${u.id}/proyectos`).then(r => r.json())
+    const todos = Array.isArray(data) ? data : []
+    setProyectosTodos(todos)
+    const asignados = new Set<string>(todos.filter((p: any) => p.patrocinador_id === u.id).map((p: any) => p.id))
+    setProyectosAsignados(asignados)
+    setProyectosAsignadosOrig(new Set(asignados))
+    setProyectosModalOpen(true)
+  }
+
+  async function handleGuardarProyectos() {
+    if (!editando) return
+    setSavingProyectos(true)
+    const asignar = [...proyectosAsignados].filter(id => !proyectosAsignadosOrig.has(id))
+    const desasignar = [...proyectosAsignadosOrig].filter(id => !proyectosAsignados.has(id))
+    await fetch(`/api/usuarios/${editando.id}/proyectos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ asignar, desasignar }),
+    })
+    setSavingProyectos(false)
+    setProyectosModalOpen(false)
+    await fetchAll()
+  }
+
+  function toggleProyecto(proyId: string) {
+    setProyectosAsignados(prev => {
+      const next = new Set(prev)
+      next.has(proyId) ? next.delete(proyId) : next.add(proyId)
+      return next
+    })
   }
 
   async function toggleActivo(u: Usuario) {
@@ -256,6 +295,10 @@ export default function UsuariosPage() {
                             <Key size={13} />
                           </button>
                         )}
+                        <button onClick={() => openProyectos(u)} title="Asignar proyectos"
+                          className="p-1.5 rounded-lg hover:bg-[#EBF8FF] text-gray-400 hover:text-[#2B6CB0] transition-colors">
+                          <FolderOpen size={13} />
+                        </button>
                         <button onClick={() => openEnlace(u)} title="Enlazar con Google"
                           className="p-1.5 rounded-lg hover:bg-[#EBF8FF] text-gray-400 hover:text-[#2B6CB0] transition-colors">
                           <Link size={13} />
@@ -355,6 +398,43 @@ export default function UsuariosPage() {
           <div className="flex justify-end gap-3">
             <Btn variant="secondary" onClick={() => setEnlaceModalOpen(false)}>Cancelar</Btn>
             <Btn onClick={handleEnlace} loading={saving} disabled={!enlaceAuthId}>Enlazar</Btn>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Proyectos */}
+      <Modal open={proyectosModalOpen} onClose={() => setProyectosModalOpen(false)}
+        title={`Proyectos de ${editando?.nombre} ${editando?.apellido}`} size="md">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">
+            Seleccioná los proyectos que este usuario puede ver. El usuario quedará asignado como patrocinador de los proyectos seleccionados.
+          </p>
+          {proyectosTodos.length === 0 ? (
+            <p className="text-sm text-gray-400 italic text-center py-4">No hay proyectos en el sistema</p>
+          ) : (
+            <div className="border border-gray-200 rounded-lg max-h-72 overflow-y-auto divide-y divide-gray-50">
+              {proyectosTodos.map(p => (
+                <label key={p.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={proyectosAsignados.has(p.id)}
+                    onChange={() => toggleProyecto(p.id)}
+                    className="rounded border-gray-300 text-[#2B6CB0]"
+                  />
+                  <span className="text-sm text-[#1B2A4A] flex-1">{p.nombre}</span>
+                  {p.patrocinador_id && p.patrocinador_id !== editando?.id && (
+                    <span className="text-xs text-gray-400 italic">otro patrocinador</span>
+                  )}
+                </label>
+              ))}
+            </div>
+          )}
+          <p className="text-xs text-gray-400">
+            {proyectosAsignados.size} proyecto{proyectosAsignados.size !== 1 ? 's' : ''} seleccionado{proyectosAsignados.size !== 1 ? 's' : ''}
+          </p>
+          <div className="flex justify-end gap-3 pt-2">
+            <Btn variant="secondary" onClick={() => setProyectosModalOpen(false)}>Cancelar</Btn>
+            <Btn onClick={handleGuardarProyectos} loading={savingProyectos}>Guardar</Btn>
           </div>
         </div>
       </Modal>
