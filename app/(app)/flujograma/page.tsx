@@ -135,8 +135,7 @@ export default function FlujogramaPage() {
                     }`}>
                     <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                       estado === 'completado' ? 'bg-green-400' :
-                      estado === 'bloqueado' ? 'bg-red-400' :
-                      estado === 'en_proceso' ? 'bg-blue-400' : 'bg-amber-400'
+                      (estado === 'vencido' || estado === 'bloqueado') ? 'bg-red-400' : 'bg-amber-400'
                     } ${isSelected ? 'opacity-70' : ''}`} />
                     {p.nombre}
                   </button>
@@ -191,7 +190,7 @@ export default function FlujogramaPage() {
                             {estadoProyecto === 'en_proceso' ? 'En proceso' :
                              estadoProyecto === 'completado' ? 'Completado' :
                              estadoProyecto === 'bloqueado' ? 'Bloqueado' :
-                             estadoProyecto === 'vencido' ? 'Vencido' : 'Pendiente'}
+                             estadoProyecto === 'vencido' ? 'Demorado' : 'Pendiente'}
                           </span>
                           <span className="text-white/60 text-xs">{formatDate(p.fecha_inicio)} → {formatDate(p.fecha_fin)}</span>
                         </div>

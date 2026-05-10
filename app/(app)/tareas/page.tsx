@@ -168,7 +168,7 @@ export default function TareasPage() {
         'Fecha Inicio': formatDate(t.fecha_inicio),
         'Duración (días)': t.duracion_dias,
         'Fecha Fin': formatDate(t.fecha_fin),
-        'Vencida': (calcularEstadoReal(t.estado, t.fecha_fin) === 'vencido') ? 'Sí' : 'No',
+        'Demorada': (calcularEstadoReal(t.estado, t.fecha_fin) === 'vencido') ? 'Sí' : 'No',
       }))
       const ws = XLSX.utils.json_to_sheet(rows)
       const wb = XLSX.utils.book_new()
@@ -255,7 +255,7 @@ export default function TareasPage() {
                       {l}<SortIcon field={f} />
                     </th>
                   ))}
-                  <th className="px-4 py-3 text-xs font-semibold text-[#1B2A4A] uppercase">Vencida</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-[#1B2A4A] uppercase">Demorada</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>

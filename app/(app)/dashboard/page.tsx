@@ -86,7 +86,7 @@ export default function DashboardDirectivoPage() {
           { label: 'En proceso', value: kpis.en_proceso, color: 'bg-blue-50', text: 'text-blue-700', estado: 'en_proceso' },
           { label: 'Pendientes', value: kpis.pendiente, color: 'bg-amber-50', text: 'text-amber-700', estado: 'pendiente' },
           { label: 'Bloqueados', value: kpis.bloqueado, color: 'bg-red-50', text: 'text-red-700', estado: 'bloqueado' },
-          { label: 'Vencidos', value: kpis.vencido, color: 'bg-red-100', text: 'text-red-900', estado: 'vencido' },
+          { label: 'Demorados', value: kpis.vencido, color: 'bg-red-100', text: 'text-red-900', estado: 'vencido' },
           { label: 'Completados', value: kpis.completado, color: 'bg-green-50', text: 'text-green-700', estado: 'completado' },
         ].map(k => (
           <div key={k.label} onClick={() => setFiltroEstado(filtroEstado === k.estado ? '' : k.estado)}
