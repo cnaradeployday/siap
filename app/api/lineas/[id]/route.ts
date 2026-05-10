@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { logAudit } from '@/lib/audit'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,6 +14,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const { data, error } = await supabaseAdmin
     .from('lineas_accion').update(body).eq('id', id).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  await logAudit('lineas_accion', 'UPDATE', { id, ...body })
   return NextResponse.json(data)
 }
 
@@ -21,5 +23,6 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   const { error } = await supabaseAdmin
     .from('lineas_accion').update({ deleted_at: new Date().toISOString() }).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  await logAudit('lineas_accion', 'DELETE', { id })
   return NextResponse.json({ ok: true })
 }

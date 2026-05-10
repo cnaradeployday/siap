@@ -15,7 +15,6 @@ export default function DashboardEjecutivoPage() {
   const [search, setSearch] = useState('')
   const [filtroEstado, setFiltroEstado] = useState<string>('completado')
   const [filtroPatrocinador, setFiltroPatrocinador] = useState('')
-  const [filtroResponsable, setFiltroResponsable] = useState('')
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set())
   const [tareasExpandidas, setTareasExpandidas] = useState<Set<string>>(new Set())
   const [tareasMap, setTareasMap] = useState<Record<string, any[]>>({})
@@ -50,11 +49,9 @@ export default function DashboardEjecutivoPage() {
   // Apply all filters except estado, so KPI counts react to lider/responsable/search filters
   const filteredForKpis = proyectosConEstado.filter(p => {
     const q = search.toLowerCase()
-    const lineas = (p.lineas_accion as any[]) ?? []
     const matchSearch = !q || p.nombre.toLowerCase().includes(q)
     const matchPat = !filtroPatrocinador || p.patrocinador_id === filtroPatrocinador
-    const matchResp = !filtroResponsable || lineas.some((l: any) => l.responsable?.id === filtroResponsable)
-    return matchSearch && matchPat && matchResp
+    return matchSearch && matchPat
   })
 
   const kpis = {
@@ -142,11 +139,6 @@ export default function DashboardEjecutivoPage() {
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]">
           <option value="">Todos los líderes</option>
           {lideres.map(u => <option key={u.id} value={u.id}>{u.apellido}, {u.nombre}</option>)}
-        </select>
-        <select value={filtroResponsable} onChange={e => setFiltroResponsable(e.target.value)}
-          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]">
-          <option value="">Todos los responsables</option>
-          {usuarios.map(u => <option key={u.id} value={u.id}>{u.apellido}, {u.nombre}</option>)}
         </select>
       </div>
 

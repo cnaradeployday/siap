@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { logAudit } from '@/lib/audit'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -53,5 +54,6 @@ export async function POST(req: Request) {
   const { data, error } = await supabaseAdmin
     .from('proyectos').insert(body).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  await logAudit('proyectos', 'INSERT', data)
   return NextResponse.json(data)
 }

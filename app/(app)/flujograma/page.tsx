@@ -18,11 +18,11 @@ const ESTADO_BORDER: Record<EstadoItem, string> = {
 }
 
 const ESTADO_HEADER: Record<EstadoItem, string> = {
-  pendiente:  'bg-amber-400',
-  en_proceso: 'bg-blue-500',
-  bloqueado:  'bg-red-500',
-  vencido:    'bg-red-700',
-  completado: 'bg-green-500',
+  pendiente:  'bg-[#1B2A4A]',
+  en_proceso: 'bg-[#1B2A4A]',
+  bloqueado:  'bg-[#1B2A4A]',
+  vencido:    'bg-[#1B2A4A]',
+  completado: 'bg-[#1B2A4A]',
 }
 
 export default function FlujogramaPage() {
