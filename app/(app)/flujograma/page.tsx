@@ -272,18 +272,21 @@ export default function FlujogramaPage() {
                                       <span>✓</span><span>{l.metrica_exito}</span>
                                     </p>
                                   )}
-                                  <div className="space-y-1.5 mt-3 pt-3 border-t border-black/5">
-                                    {l.responsable && (
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-5 h-5 rounded-full bg-[#1B2A4A] flex items-center justify-center flex-shrink-0">
-                                          <span className="text-white text-[8px] font-bold">
-                                            {l.responsable.nombre[0]}{l.responsable.apellido[0]}
-                                          </span>
-                                        </div>
-                                        <span className="text-xs text-gray-600">{l.responsable.apellido}, {l.responsable.nombre}</span>
-                                      </div>
-                                    )}
-                                    <div className="text-xs text-gray-400">{formatDate(l.fecha_inicio)} → {formatDate(l.fecha_fin)}</div>
+                                  <div className="mt-3 pt-3 border-t border-black/5">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      {l.responsable && (
+                                        <>
+                                          <div className="w-5 h-5 rounded-full bg-[#1B2A4A] flex items-center justify-center flex-shrink-0">
+                                            <span className="text-white text-[8px] font-bold">
+                                              {l.responsable.nombre[0]}{l.responsable.apellido[0]}
+                                            </span>
+                                          </div>
+                                          <span className="text-xs text-gray-600">{l.responsable.apellido}, {l.responsable.nombre}</span>
+                                          <span className="text-gray-300 text-xs">·</span>
+                                        </>
+                                      )}
+                                      <span className="text-xs text-gray-400">{formatDate(l.fecha_inicio)} → {formatDate(l.fecha_fin)}</span>
+                                    </div>
                                   </div>
                                   <button
                                     onClick={() => toggleTareas(l.id)}
@@ -296,13 +299,19 @@ export default function FlujogramaPage() {
                                       {(tareasMap[l.id] ?? []).length === 0 ? (
                                         <p className="text-xs text-gray-400 italic">Sin tareas</p>
                                       ) : (tareasMap[l.id] ?? []).map((t: any) => (
-                                        <div key={t.id} className="flex items-start gap-2 bg-white/70 rounded-lg px-2 py-1.5">
-                                          <span className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${
+                                        <div key={t.id} className="flex items-center gap-2 bg-white/70 rounded-lg px-2 py-1.5 flex-wrap">
+                                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
                                             t.estado === 'completado' ? 'bg-green-500' :
-                                            t.estado === 'bloqueado' ? 'bg-red-500' :
-                                            t.estado === 'en_proceso' ? 'bg-blue-500' : 'bg-amber-400'
+                                            (t.estado === 'bloqueado' || t.estado === 'vencido') ? 'bg-red-500' :
+                                            t.estado === 'en_proceso' ? 'bg-amber-400' : 'bg-amber-400'
                                           }`}/>
-                                          <span className="text-xs text-gray-700 leading-tight">{t.nombre}</span>
+                                          <span className="text-xs text-gray-700 leading-tight flex-1 min-w-0">{t.nombre}</span>
+                                          {(t.fecha_inicio || t.fecha_fin) && (
+                                            <span className="text-[10px] text-gray-400 whitespace-nowrap">{formatDate(t.fecha_inicio)} → {formatDate(t.fecha_fin)}</span>
+                                          )}
+                                          {t.responsable && (
+                                            <span className="text-[10px] text-gray-500 whitespace-nowrap">{t.responsable.apellido}, {t.responsable.nombre}</span>
+                                          )}
                                         </div>
                                       ))}
                                     </div>
