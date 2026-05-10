@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { Printer, ChevronDown, ChevronRight } from 'lucide-react'
 import { Proyecto, EstadoItem, Usuario } from '@/lib/types'
 import { formatDate, calcularEstadoReal, calcularEstadoProyecto } from '@/lib/utils'
@@ -17,13 +17,6 @@ const ESTADO_BORDER: Record<EstadoItem, string> = {
   completado: 'border-green-400 bg-green-50',
 }
 
-const ESTADO_HEADER: Record<EstadoItem, string> = {
-  pendiente:  'bg-[#1B2A4A]',
-  en_proceso: 'bg-[#1B2A4A]',
-  bloqueado:  'bg-[#1B2A4A]',
-  vencido:    'bg-[#1B2A4A]',
-  completado: 'bg-[#1B2A4A]',
-}
 
 export default function FlujogramaPage() {
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
@@ -206,65 +199,56 @@ export default function FlujogramaPage() {
                     <img src="/logo.png" alt="Logo" className="h-12 w-auto object-contain" />
                   </div>
 
-                  <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-                    {/* Header del proyecto coloreado */}
-                    <div className={`${ESTADO_HEADER[estadoProyecto] ?? 'bg-gray-400'} px-6 py-4`}>
-                      <div className="flex items-start justify-between flex-wrap gap-2">
-                        <div>
-                          <p className="text-white/70 text-xs uppercase tracking-wider font-medium mb-0.5">Proyecto</p>
-                          <h2 className="text-xl font-bold text-white leading-tight">{p.nombre}</h2>
-                        </div>
-                        <div className="flex flex-col items-end gap-1">
-                          <span className="bg-white/20 text-white text-xs font-semibold px-3 py-1 rounded-full backdrop-blur-sm">
-                            {estadoProyecto === 'en_proceso' ? 'En proceso' :
-                             estadoProyecto === 'completado' ? 'Completado' :
-                             estadoProyecto === 'bloqueado' ? 'Bloqueado' :
-                             estadoProyecto === 'vencido' ? 'Demorado' : 'Pendiente'}
+                  <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm print:shadow-none print:rounded-none print:border-x-0 print:border-t-0">
+                    {/* Compact project header */}
+                    <div className="px-6 pt-4 pb-3 border-b border-gray-200">
+                      <div className="flex items-center gap-2 flex-wrap mb-2">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Proyecto</span>
+                        <StatusBadge estado={estadoProyecto} size="sm" />
+                        <span className="text-xs text-gray-400">{formatDate(p.fecha_inicio)} → {formatDate(p.fecha_fin)}</span>
+                        {(p.patrocinador as any) && (
+                          <span className="text-xs text-gray-500">
+                            · Líder: <span className="font-medium text-gray-700">{(p.patrocinador as any).apellido}, {(p.patrocinador as any).nombre}</span>
                           </span>
-                          <span className="text-white/60 text-xs">{formatDate(p.fecha_inicio)} → {formatDate(p.fecha_fin)}</span>
-                        </div>
+                        )}
                       </div>
-                      {(p.patrocinador as any) && (
-                        <p className="text-white/70 text-xs mt-2">
-                          Líder: <span className="text-white font-medium">{(p.patrocinador as any).apellido}, {(p.patrocinador as any).nombre}</span>
-                        </p>
-                      )}
+                      <h2 className="text-lg font-bold text-[#1B2A4A] leading-snug">{p.nombre}</h2>
                     </div>
 
-                    {/* Descripción y variable de éxito */}
+                    {/* Descripción y variable de éxito compactas */}
                     {(p.descripcion || p.metrica_exito) && (
-                      <div className="px-6 py-3 bg-gray-50 border-b border-gray-100 grid md:grid-cols-2 gap-4">
+                      <div className="px-6 py-2 border-b border-gray-100 space-y-1">
                         {p.descripcion && (
-                          <div>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Descripción</p>
-                            <p className="text-sm text-gray-700">{p.descripcion}</p>
+                          <div className="flex gap-2 text-xs">
+                            <span className="font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Descripción</span>
+                            <span className="text-gray-700">{p.descripcion}</span>
                           </div>
                         )}
                         {p.metrica_exito && (
-                          <div>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Variable de éxito</p>
-                            <p className="text-sm text-gray-700">{p.metrica_exito}</p>
+                          <div className="flex gap-2 text-xs">
+                            <span className="font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Variable de éxito</span>
+                            <span className="text-gray-700">{p.metrica_exito}</span>
                           </div>
                         )}
                       </div>
                     )}
 
                     {/* Líneas */}
-                    <div className="p-6">
+                    <div className="p-4">
                       {lineas.length === 0 ? (
                         <p className="text-gray-300 text-sm italic">Sin líneas de acción</p>
                       ) : (
-                        <div className="grid gap-4 md:grid-cols-3">
+                        <div className="grid gap-3 md:grid-cols-3">
                           {lineas.map((l: any) => {
                             const er = calcularEstadoReal(l.estado, l.fecha_fin)
                             const nro = NRO_LINEA[l.orden - 1] ?? l.orden
                             return (
-                              <div key={l.id} className={`rounded-xl border-2 overflow-hidden ${ESTADO_BORDER[er] ?? 'border-gray-200 bg-gray-50'}`}>
+                              <div key={l.id} className={`rounded-xl border-2 overflow-hidden break-inside-avoid ${ESTADO_BORDER[er] ?? 'border-gray-200 bg-gray-50'}`}>
                                 <div className="px-4 pt-3 pb-2 flex items-center justify-between">
                                   <span className="text-[10px] font-black text-[#1B2A4A] uppercase tracking-widest">LÍNEA {nro}</span>
                                   <StatusBadge estado={er} size="sm" />
                                 </div>
-                                <div className="px-4 pb-4">
+                                <div className="px-4 pb-3">
                                   <h3 className="font-bold text-[#1B2A4A] text-sm mb-2 leading-snug">{l.nombre}</h3>
                                   {l.descripcion && <p className="text-xs text-gray-500 mb-1">{l.descripcion}</p>}
                                   {l.metrica_exito && (
