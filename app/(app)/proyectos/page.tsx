@@ -116,7 +116,7 @@ export default function ProyectosPage() {
         <div className="relative flex-1 min-w-48">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar por nombre o patrocinador..."
+            placeholder="Buscar por nombre o líder..."
             className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]" />
         </div>
         <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}
@@ -126,7 +126,7 @@ export default function ProyectosPage() {
         </select>
         <select value={filtroPatrocinador} onChange={e => setFiltroPatrocinador(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]">
-          <option value="">Todos los patrocinadores</option>
+          <option value="">Todos los líderes</option>
           {usuarios.map(u => <option key={u.id} value={u.id}>{u.apellido}, {u.nombre}</option>)}
         </select>
       </div>
@@ -145,7 +145,7 @@ export default function ProyectosPage() {
             <table className="w-full text-sm">
               <thead className="bg-[#F0F4F8] border-b border-gray-100">
                 <tr>
-                  {[['nombre','Nombre'],['estado','Estado'],['patrocinador','Patrocinador'],['fecha_inicio','Inicio'],['fecha_fin','Fin']].map(([f,l]) => (
+                  {[['nombre','Nombre'],['estado','Estado'],['patrocinador','Líder'],['fecha_inicio','Inicio'],['fecha_fin','Fin']].map(([f,l]) => (
                     <th key={f} onClick={() => toggleSort(f)}
                       className="text-left px-4 py-3 text-xs font-semibold text-[#1B2A4A] uppercase tracking-wider cursor-pointer hover:bg-[#EBF8FF] transition-colors select-none">
                       {l}<SortIcon field={f} />
@@ -204,9 +204,9 @@ export default function ProyectosPage() {
           <FormField label="¿Cómo se mide el éxito?">
             <Textarea value={form.metrica_exito} onChange={e => setForm(f => ({ ...f, metrica_exito: e.target.value }))} rows={2} placeholder="Indicadores o métricas de éxito" />
           </FormField>
-          <FormField label="Patrocinador">
+          <FormField label="Líder">
             <Select value={form.patrocinador_id} onChange={e => setForm(f => ({ ...f, patrocinador_id: e.target.value }))}>
-              <option value="">Sin patrocinador</option>
+              <option value="">Sin líder</option>
               {usuarios.map(u => <option key={u.id} value={u.id}>{u.apellido}, {u.nombre}</option>)}
             </Select>
           </FormField>

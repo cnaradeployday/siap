@@ -17,7 +17,7 @@ export async function GET(req: Request) {
 
   let query = supabaseAdmin
     .from('logs_auditoria')
-    .select('*, usuario:usuarios(id,nombre,apellido)', { count: 'exact' })
+    .select('*, usuario:usuarios!logs_auditoria_usuario_id_fkey(id,nombre,apellido)', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
 

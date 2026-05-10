@@ -11,8 +11,8 @@ import {
 } from 'lucide-react'
 
 const NAV_ITEMS = [
-  { href: '/dashboard',           label: 'Dashboard Directivo',  icon: LayoutDashboard, seccion: 'dashboard_directivo' },
-  { href: '/dashboard-ejecutivo', label: 'Dashboard Ejecutivo',  icon: BarChart3,       seccion: 'dashboard_ejecutivo' },
+  { href: '/dashboard',           label: 'Tablero Directivo',    icon: LayoutDashboard, seccion: 'dashboard_directivo' },
+  { href: '/dashboard-ejecutivo', label: 'Tablero Ejecutivo',    icon: BarChart3,       seccion: 'dashboard_ejecutivo' },
   { href: '/flujograma',          label: 'Flujograma',           icon: GitMerge,        seccion: 'flujograma' },
   { href: '/proyectos',           label: 'Proyectos',            icon: FolderKanban,    seccion: 'proyectos' },
   { href: '/lineas-accion',       label: 'Líneas de Acción',     icon: GitBranch,       seccion: 'lineas_accion' },

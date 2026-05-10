@@ -13,10 +13,9 @@ export default function DashboardEjecutivoPage() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [filtroEstado, setFiltroEstado] = useState('')
+  const [filtroEstado, setFiltroEstado] = useState<string>('completado')
   const [filtroPatrocinador, setFiltroPatrocinador] = useState('')
   const [filtroResponsable, setFiltroResponsable] = useState('')
-  const [filtroProyecto, setFiltroProyecto] = useState('')
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set())
   const [tareasExpandidas, setTareasExpandidas] = useState<Set<string>>(new Set())
   const [tareasMap, setTareasMap] = useState<Record<string, any[]>>({})
@@ -46,12 +45,21 @@ export default function DashboardEjecutivoPage() {
 
   const proyectosConEstado = proyectos.map(p => ({ ...p, estadoReal: getEstadoReal(p) }))
 
+  // Apply all filters except estado, so KPI counts react to lider/responsable/search filters
+  const filteredForKpis = proyectosConEstado.filter(p => {
+    const q = search.toLowerCase()
+    const lineas = (p.lineas_accion as any[]) ?? []
+    const matchSearch = !q || p.nombre.toLowerCase().includes(q)
+    const matchPat = !filtroPatrocinador || p.patrocinador_id === filtroPatrocinador
+    const matchResp = !filtroResponsable || lineas.some((l: any) => l.responsable?.id === filtroResponsable)
+    return matchSearch && matchPat && matchResp
+  })
+
   const kpis = {
-    total: proyectosConEstado.length,
-    en_proceso: proyectosConEstado.filter(p => p.estadoReal === 'en_proceso').length,
-    bloqueado: proyectosConEstado.filter(p => p.estadoReal === 'bloqueado').length,
-    vencido: proyectosConEstado.filter(p => p.estadoReal === 'vencido').length,
-    completado: proyectosConEstado.filter(p => p.estadoReal === 'completado').length,
+    total: filteredForKpis.length,
+    en_proceso_pendiente: filteredForKpis.filter(p => p.estadoReal === 'en_proceso' || p.estadoReal === 'pendiente').length,
+    vencido: filteredForKpis.filter(p => p.estadoReal === 'vencido').length,
+    completado: filteredForKpis.filter(p => p.estadoReal === 'completado').length,
   }
 
   function toggleExpand(id: string) {
@@ -79,37 +87,37 @@ export default function DashboardEjecutivoPage() {
     <span className="ml-1 text-gray-400">{sortField === field ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}</span>
   )
 
-  const filtered = proyectosConEstado
-    .filter(p => {
-      const q = search.toLowerCase()
-      const lineas = (p.lineas_accion as any[]) ?? []
-      const matchSearch = !q || p.nombre.toLowerCase().includes(q)
-      const matchEstado = !filtroEstado || p.estadoReal === filtroEstado
-      const matchPat = !filtroPatrocinador || p.patrocinador_id === filtroPatrocinador
-      const matchProy = !filtroProyecto || p.id === filtroProyecto
-      const matchResp = !filtroResponsable || lineas.some((l: any) => l.responsable?.id === filtroResponsable)
-      return matchSearch && matchEstado && matchPat && matchProy && matchResp
-    })
+  function matchEstadoFilter(estadoReal: string) {
+    if (!filtroEstado) return true
+    if (filtroEstado === 'en_proceso_pendiente') return estadoReal === 'en_proceso' || estadoReal === 'pendiente'
+    return estadoReal === filtroEstado
+  }
+
+  const filtered = filteredForKpis
+    .filter(p => matchEstadoFilter(p.estadoReal))
     .sort((a, b) => {
       const av = (a as any)[sortField] ?? ''
       const bv = (b as any)[sortField] ?? ''
       return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av))
     })
 
+  function toggleKpi(estado: string) {
+    setFiltroEstado(prev => prev === estado ? '' : estado)
+  }
+
   return (
     <div>
-      <h1 className="text-2xl font-bold text-[#1B2A4A] mb-1">Dashboard Ejecutivo</h1>
+      <h1 className="text-2xl font-bold text-[#1B2A4A] mb-1">Tablero Ejecutivo</h1>
       <p className="text-gray-400 text-sm mb-6">Vista operativa con filtro por responsable</p>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         {[
           { label: 'Total', value: kpis.total, color: 'bg-[#1B2A4A]', text: 'text-white', estado: '' },
-          { label: 'En proceso', value: kpis.en_proceso, color: 'bg-blue-50', text: 'text-blue-700', estado: 'en_proceso' },
-          { label: 'Bloqueados', value: kpis.bloqueado, color: 'bg-red-50', text: 'text-red-700', estado: 'bloqueado' },
+          { label: 'En Proceso + Pendientes', value: kpis.en_proceso_pendiente, color: 'bg-blue-50', text: 'text-blue-700', estado: 'en_proceso_pendiente' },
           { label: 'Vencidos', value: kpis.vencido, color: 'bg-red-100', text: 'text-red-900', estado: 'vencido' },
           { label: 'Completados', value: kpis.completado, color: 'bg-green-50', text: 'text-green-700', estado: 'completado' },
         ].map(k => (
-          <div key={k.label} onClick={() => setFiltroEstado(filtroEstado === k.estado ? '' : k.estado)}
+          <div key={k.label} onClick={() => toggleKpi(k.estado)}
             className={`${k.color} rounded-xl p-4 cursor-pointer transition-all hover:opacity-80 ${filtroEstado === k.estado && k.estado !== '' ? 'ring-2 ring-offset-1 ring-[#2B6CB0]' : ''}`}>
             <span className={`text-3xl font-bold ${k.text}`}>{k.value}</span>
             <p className={`text-xs mt-1 ${k.text} opacity-70`}>{k.label}</p>
@@ -123,25 +131,20 @@ export default function DashboardEjecutivoPage() {
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar proyecto..."
             className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]" />
         </div>
-        <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}
+        <select value={filtroEstado === 'en_proceso_pendiente' ? '' : filtroEstado} onChange={e => setFiltroEstado(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]">
           <option value="">Todos los estados</option>
           {ESTADOS.map(e => <option key={e} value={e}>{ESTADO_LABELS[e]}</option>)}
         </select>
         <select value={filtroPatrocinador} onChange={e => setFiltroPatrocinador(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]">
-          <option value="">Todos los patrocinadores</option>
+          <option value="">Todos los líderes</option>
           {usuarios.map(u => <option key={u.id} value={u.id}>{u.apellido}, {u.nombre}</option>)}
         </select>
         <select value={filtroResponsable} onChange={e => setFiltroResponsable(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]">
           <option value="">Todos los responsables</option>
           {usuarios.map(u => <option key={u.id} value={u.id}>{u.apellido}, {u.nombre}</option>)}
-        </select>
-        <select value={filtroProyecto} onChange={e => setFiltroProyecto(e.target.value)}
-          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]">
-          <option value="">Todos los proyectos</option>
-          {proyectos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
         </select>
       </div>
 
@@ -156,13 +159,17 @@ export default function DashboardEjecutivoPage() {
               <thead className="bg-[#F0F4F8] border-b border-gray-100">
                 <tr>
                   <th className="w-8 px-2 py-3"></th>
-                  {[['nombre','Proyecto'],['estadoReal','Estado'],['patrocinador','Patrocinador'],['fecha_inicio','Inicio'],['fecha_fin','Fin']].map(([f,l]) => (
+                  {[['patrocinador','Líder'],['nombre','Proyecto'],['fecha_inicio','Inicio'],['fecha_fin','Fin']].map(([f,l]) => (
                     <th key={f} onClick={() => toggleSort(f)}
                       className="text-left px-4 py-3 text-xs font-semibold text-[#1B2A4A] uppercase tracking-wider cursor-pointer hover:bg-[#EBF8FF] transition-colors select-none">
                       {l}<SortIcon field={f} />
                     </th>
                   ))}
                   <th className="px-4 py-3 text-xs font-semibold text-[#1B2A4A] uppercase text-left">Resp. Línea</th>
+                  <th onClick={() => toggleSort('estadoReal')}
+                    className="text-left px-4 py-3 text-xs font-semibold text-[#1B2A4A] uppercase tracking-wider cursor-pointer hover:bg-[#EBF8FF] transition-colors select-none">
+                    Estado<SortIcon field="estadoReal" />
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -176,14 +183,14 @@ export default function DashboardEjecutivoPage() {
                         <td className="px-2 py-3 text-center text-gray-400">
                           {lineas.length > 0 && (expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />)}
                         </td>
-                        <td className="px-4 py-3 font-semibold text-[#1B2A4A]">{p.nombre}</td>
-                        <td className="px-4 py-3"><StatusBadge estado={p.estadoReal} fechaFin={p.fecha_fin} /></td>
                         <td className="px-4 py-3 text-gray-500 text-xs">
                           {(p.patrocinador as any) ? `${(p.patrocinador as any).apellido}, ${(p.patrocinador as any).nombre}` : '-'}
                         </td>
+                        <td className="px-4 py-3 font-semibold text-[#1B2A4A]">{p.nombre}</td>
                         <td className="px-4 py-3 text-gray-500 text-xs">{formatDate(p.fecha_inicio)}</td>
                         <td className="px-4 py-3 text-gray-500 text-xs">{formatDate(p.fecha_fin)}</td>
                         <td className="px-4 py-3 text-gray-400 text-xs">{lineas.length} línea{lineas.length !== 1 ? 's' : ''}</td>
+                        <td className="px-4 py-3"><StatusBadge estado={p.estadoReal} fechaFin={p.fecha_fin} /></td>
                       </tr>
                       {expanded && lineas.map((l: any) => {
                         const er = calcularEstadoReal(l.estado, l.fecha_fin)
@@ -198,17 +205,17 @@ export default function DashboardEjecutivoPage() {
                                   {tareasAbiertas ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                                 </button>
                               </td>
+                              <td className="px-4 py-2.5 text-gray-400 text-xs">—</td>
                               <td className="px-4 py-2.5 text-[#1B2A4A] text-xs">
                                 <span className="font-semibold text-[#2B6CB0] mr-1">{['I','II','III'][l.orden-1] ?? l.orden}.</span>
                                 {l.nombre}
                               </td>
-                              <td className="px-4 py-2.5"><StatusBadge estado={er} size="sm" /></td>
-                              <td className="px-4 py-2.5 text-gray-400 text-xs">—</td>
                               <td className="px-4 py-2.5 text-gray-400 text-xs">{formatDate(l.fecha_inicio)}</td>
                               <td className="px-4 py-2.5 text-gray-400 text-xs">{formatDate(l.fecha_fin)}</td>
                               <td className="px-4 py-2.5 text-gray-500 text-xs">
                                 {l.responsable ? `${l.responsable.apellido}, ${l.responsable.nombre}` : '-'}
                               </td>
+                              <td className="px-4 py-2.5"><StatusBadge estado={er} size="sm" /></td>
                             </tr>
                             {tareasAbiertas && (
                               tareasDeLinea.length === 0 ? (
@@ -219,7 +226,8 @@ export default function DashboardEjecutivoPage() {
                               ) : tareasDeLinea.map((t: any) => (
                                 <tr key={t.id} className="border-l-4 border-[#2B6CB0] bg-white">
                                   <td></td>
-                                  <td className="px-4 py-2 pl-10 text-xs text-[#1B2A4A]" colSpan={2}>
+                                  <td className="px-4 py-2 text-xs text-gray-400">—</td>
+                                  <td className="px-4 py-2 pl-6 text-xs text-[#1B2A4A]">
                                     <div className="flex items-center gap-2">
                                       <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
                                         t.estado === 'completado' ? 'bg-green-500' :
@@ -229,11 +237,13 @@ export default function DashboardEjecutivoPage() {
                                       {t.nombre}
                                     </div>
                                   </td>
-                                  <td className="px-4 py-2 text-xs text-gray-400">—</td>
                                   <td className="px-4 py-2 text-xs text-gray-400">{formatDate(t.fecha_inicio)}</td>
                                   <td className="px-4 py-2 text-xs text-gray-400">{formatDate(t.fecha_fin)}</td>
                                   <td className="px-4 py-2 text-xs text-gray-500">
                                     {t.responsable ? `${t.responsable.apellido}, ${t.responsable.nombre}` : '-'}
+                                  </td>
+                                  <td className="px-4 py-2 text-xs">
+                                    <StatusBadge estado={t.estado} size="sm" />
                                   </td>
                                 </tr>
                               ))

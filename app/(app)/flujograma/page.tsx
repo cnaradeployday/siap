@@ -110,7 +110,7 @@ export default function FlujogramaPage() {
             </div>
             <select value={filtroPatrocinador} onChange={e => setFiltroPatrocinador(e.target.value)}
               className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]">
-              <option value="">Todos los patrocinadores</option>
+              <option value="">Todos los líderes</option>
               {usuarios.map(u => (
                 <option key={u.id} value={u.id}>{u.apellido}, {u.nombre}</option>
               ))}
@@ -196,7 +196,7 @@ export default function FlujogramaPage() {
                       </div>
                       {(p.patrocinador as any) && (
                         <p className="text-white/70 text-xs mt-2">
-                          Patrocinador: <span className="text-white font-medium">{(p.patrocinador as any).apellido}, {(p.patrocinador as any).nombre}</span>
+                          Líder: <span className="text-white font-medium">{(p.patrocinador as any).apellido}, {(p.patrocinador as any).nombre}</span>
                         </p>
                       )}
                     </div>

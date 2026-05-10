@@ -14,6 +14,7 @@ export default function LogsPage() {
   const [logs, setLogs] = useState<any[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [filtroTabla, setFiltroTabla] = useState('')
   const [filtroAccion, setFiltroAccion] = useState('')
   const [page, setPage] = useState(1)
@@ -23,13 +24,18 @@ export default function LogsPage() {
 
   async function fetchLogs() {
     setLoading(true)
-    const params = new URLSearchParams({ page: String(page) })
-    if (filtroTabla) params.set('tabla', filtroTabla)
-    if (filtroAccion) params.set('accion', filtroAccion)
-    const res = await fetch(`/api/logs?${params}`)
-    const data = await res.json()
-    setLogs(data.data ?? [])
-    setTotal(data.total ?? 0)
+    setError(null)
+    try {
+      const params = new URLSearchParams({ page: String(page) })
+      if (filtroTabla) params.set('tabla', filtroTabla)
+      if (filtroAccion) params.set('accion', filtroAccion)
+      const res = await fetch(`/api/logs?${params}`)
+      const data = await res.json()
+      if (!res.ok) { setError(data.error ?? 'Error al cargar los logs'); setLogs([]); setTotal(0) }
+      else { setLogs(data.data ?? []); setTotal(data.total ?? 0) }
+    } catch (e: any) {
+      setError(e.message ?? 'Error de red')
+    }
     setLoading(false)
   }
 
@@ -71,6 +77,8 @@ export default function LogsPage() {
           <div className="flex items-center justify-center py-16">
             <div className="w-8 h-8 border-2 border-[#2B6CB0] border-t-transparent rounded-full animate-spin" />
           </div>
+        ) : error ? (
+          <div className="text-center py-16 text-red-500 text-sm">{error}</div>
         ) : logs.length === 0 ? (
           <div className="text-center py-16 text-gray-400">Sin registros de auditoría</div>
         ) : (

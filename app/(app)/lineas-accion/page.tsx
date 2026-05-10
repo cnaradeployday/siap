@@ -291,9 +291,9 @@ export default function LineasAccionPage() {
                 {usuarios.map(u => <option key={u.id} value={u.id}>{u.apellido}, {u.nombre}</option>)}
               </Select>
             </FormField>
-            <FormField label="Patrocinador">
+            <FormField label="Líder">
               <Select value={form.patrocinador_id} onChange={e => setForm(f => ({ ...f, patrocinador_id: e.target.value }))}>
-                <option value="">Sin patrocinador</option>
+                <option value="">Sin líder</option>
                 {usuarios.map(u => <option key={u.id} value={u.id}>{u.apellido}, {u.nombre}</option>)}
               </Select>
             </FormField>

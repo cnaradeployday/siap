@@ -76,7 +76,7 @@ export default function DashboardDirectivoPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-[#1B2A4A] mb-1">Dashboard Directivo</h1>
+      <h1 className="text-2xl font-bold text-[#1B2A4A] mb-1">Tablero Directivo</h1>
       <p className="text-gray-400 text-sm mb-6">Resumen ejecutivo del estado de proyectos</p>
 
       {/* KPIs */}
@@ -111,7 +111,7 @@ export default function DashboardDirectivoPage() {
         </select>
         <select value={filtroPatrocinador} onChange={e => setFiltroPatrocinador(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]">
-          <option value="">Todos los patrocinadores</option>
+          <option value="">Todos los líderes</option>
           {usuarios.map(u => <option key={u.id} value={u.id}>{u.apellido}, {u.nombre}</option>)}
         </select>
         <select value={filtroProyecto} onChange={e => setFiltroProyecto(e.target.value)}
@@ -132,7 +132,7 @@ export default function DashboardDirectivoPage() {
             <table className="w-full text-sm">
               <thead className="bg-[#F0F4F8] border-b border-gray-100">
                 <tr>
-                  {[['nombre','Proyecto'],['estadoReal','Estado'],['patrocinador','Patrocinador'],['fecha_inicio','Inicio'],['fecha_fin','Fin']].map(([f,l]) => (
+                  {[['nombre','Proyecto'],['estadoReal','Estado'],['patrocinador','Líder'],['fecha_inicio','Inicio'],['fecha_fin','Fin']].map(([f,l]) => (
                     <th key={f} onClick={() => toggleSort(f)}
                       className="text-left px-4 py-3 text-xs font-semibold text-[#1B2A4A] uppercase tracking-wider cursor-pointer hover:bg-[#EBF8FF] transition-colors select-none">
                       {l}<SortIcon field={f} />
