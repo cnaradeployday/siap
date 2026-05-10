@@ -45,6 +45,8 @@ export default function DashboardEjecutivoPage() {
 
   const proyectosConEstado = proyectos.map(p => ({ ...p, estadoReal: getEstadoReal(p) }))
 
+  const lideres = usuarios.filter(u => proyectos.some(p => p.patrocinador_id === u.id))
+
   // Apply all filters except estado, so KPI counts react to lider/responsable/search filters
   const filteredForKpis = proyectosConEstado.filter(p => {
     const q = search.toLowerCase()
@@ -114,7 +116,7 @@ export default function DashboardEjecutivoPage() {
         {[
           { label: 'Total', value: kpis.total, color: 'bg-[#1B2A4A]', text: 'text-white', estado: '' },
           { label: 'En Proceso + Pendientes', value: kpis.en_proceso_pendiente, color: 'bg-blue-50', text: 'text-blue-700', estado: 'en_proceso_pendiente' },
-          { label: 'Vencidos', value: kpis.vencido, color: 'bg-red-100', text: 'text-red-900', estado: 'vencido' },
+          { label: 'Demorados', value: kpis.vencido, color: 'bg-red-100', text: 'text-red-900', estado: 'vencido' },
           { label: 'Completados', value: kpis.completado, color: 'bg-green-50', text: 'text-green-700', estado: 'completado' },
         ].map(k => (
           <div key={k.label} onClick={() => toggleKpi(k.estado)}
@@ -139,7 +141,7 @@ export default function DashboardEjecutivoPage() {
         <select value={filtroPatrocinador} onChange={e => setFiltroPatrocinador(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]">
           <option value="">Todos los líderes</option>
-          {usuarios.map(u => <option key={u.id} value={u.id}>{u.apellido}, {u.nombre}</option>)}
+          {lideres.map(u => <option key={u.id} value={u.id}>{u.apellido}, {u.nombre}</option>)}
         </select>
         <select value={filtroResponsable} onChange={e => setFiltroResponsable(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]">

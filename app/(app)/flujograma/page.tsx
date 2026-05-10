@@ -69,6 +69,8 @@ export default function FlujogramaPage() {
     window.print()
   }
 
+  const lideres = usuarios.filter(u => proyectos.some(p => p.patrocinador_id === u.id))
+
   const proyectosFiltrados = proyectos
     .filter(p => seleccionados.includes(p.id))
     .filter(p => !filtroPatrocinador || p.patrocinador_id === filtroPatrocinador)
@@ -88,7 +90,7 @@ export default function FlujogramaPage() {
       <div>
         <div className="flex items-start justify-between mb-4 no-print">
           <div>
-            <h1 className="text-2xl font-bold text-[#1B2A4A]">Flujograma</h1>
+            <h1 className="text-2xl font-bold text-[#1B2A4A]">Ficha de Proyecto</h1>
             <p className="text-gray-400 text-sm">Visualización de proyectos y sus líneas de acción</p>
           </div>
           <Btn variant="secondary" size="sm" onClick={exportarPDF}>
@@ -111,7 +113,7 @@ export default function FlujogramaPage() {
             <select value={filtroPatrocinador} onChange={e => setFiltroPatrocinador(e.target.value)}
               className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]">
               <option value="">Todos los líderes</option>
-              {usuarios.map(u => (
+              {lideres.map(u => (
                 <option key={u.id} value={u.id}>{u.apellido}, {u.nombre}</option>
               ))}
             </select>
