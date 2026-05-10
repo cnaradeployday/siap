@@ -59,6 +59,21 @@ export default function FlujogramaPage() {
     setTareasExpandidas(prev => new Set([...prev, lineaId]))
   }
 
+  async function expandirTodasTareas() {
+    const todasLineas = proyectosFiltrados.flatMap(p =>
+      [...((p.lineas_accion as any[]) ?? [])].filter((l: any) => !l.deleted_at)
+    )
+    const nuevasEntradas: Record<string, any[]> = {}
+    await Promise.all(todasLineas.map(async (l: any) => {
+      if (!tareasMap[l.id]) {
+        const data = await fetch(`/api/tareas?lineaId=${l.id}`).then(r => r.json())
+        nuevasEntradas[l.id] = Array.isArray(data) ? data : []
+      }
+    }))
+    setTareasMap(prev => ({ ...prev, ...nuevasEntradas }))
+    setTareasExpandidas(new Set(todasLineas.map((l: any) => l.id)))
+  }
+
   function toggleProyecto(id: string) {
     setSeleccionados(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
@@ -100,15 +115,29 @@ export default function FlujogramaPage() {
 
         <div className="bg-white rounded-xl border border-gray-100 p-4 mb-6 no-print">
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-            <div className="flex items-center gap-3">
-              <p className="text-sm font-semibold text-[#1B2A4A]">Proyectos</p>
-              <div className="flex gap-2">
-                <button onClick={() => setSeleccionados(proyectos.filter(p => !filtroPatrocinador || p.patrocinador_id === filtroPatrocinador).map(p => p.id))}
-                  className="text-xs text-[#2B6CB0] hover:underline font-medium">Todos</button>
-                <span className="text-gray-300">|</span>
-                <button onClick={() => setSeleccionados([])}
-                  className="text-xs text-gray-400 hover:underline">Ninguno</button>
+            <div className="flex items-center gap-5 flex-wrap">
+              <div className="flex items-center gap-3">
+                <p className="text-sm font-semibold text-[#1B2A4A]">Proyectos</p>
+                <div className="flex gap-2">
+                  <button onClick={() => setSeleccionados(proyectos.filter(p => !filtroPatrocinador || p.patrocinador_id === filtroPatrocinador).map(p => p.id))}
+                    className="text-xs text-[#2B6CB0] hover:underline font-medium">Todos</button>
+                  <span className="text-gray-300">|</span>
+                  <button onClick={() => setSeleccionados([])}
+                    className="text-xs text-gray-400 hover:underline">Ninguno</button>
+                </div>
               </div>
+              {seleccionados.length > 0 && (
+                <div className="flex items-center gap-3">
+                  <p className="text-sm font-semibold text-[#1B2A4A]">Tareas</p>
+                  <div className="flex gap-2">
+                    <button onClick={expandirTodasTareas}
+                      className="text-xs text-[#2B6CB0] hover:underline font-medium">Todas</button>
+                    <span className="text-gray-300">|</span>
+                    <button onClick={() => setTareasExpandidas(new Set())}
+                      className="text-xs text-gray-400 hover:underline">Ninguna</button>
+                  </div>
+                </div>
+              )}
             </div>
             <select value={filtroPatrocinador} onChange={e => setFiltroPatrocinador(e.target.value)}
               className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]">
