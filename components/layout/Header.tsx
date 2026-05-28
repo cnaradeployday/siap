@@ -2,12 +2,12 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { LogOut, User, KeyRound } from 'lucide-react'
+import { LogOut, KeyRound, BookOpen } from 'lucide-react'
 import { Usuario } from '@/lib/types'
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 
-export default function Header({ usuario }: { usuario: Usuario }) {
+export default function Header({ usuario, manualUrl }: { usuario: Usuario; manualUrl?: string | null }) {
   const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -36,6 +36,18 @@ export default function Header({ usuario }: { usuario: Usuario }) {
         </span>
       </div>
       <div className="flex items-center gap-3" ref={menuRef}>
+        {manualUrl && (
+          <a
+            href={manualUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[#2B6CB0] bg-[#EBF8FF] hover:bg-[#BEE3F8] rounded-lg transition-colors"
+          >
+            <BookOpen size={15} />
+            <span className="hidden sm:inline">Manual</span>
+          </a>
+        )}
+
         <div className="relative">
           <button onClick={() => setMenuOpen(!menuOpen)}
             className="flex items-center gap-2 hover:bg-[#EBF8FF] px-3 py-1.5 rounded-lg transition-colors">

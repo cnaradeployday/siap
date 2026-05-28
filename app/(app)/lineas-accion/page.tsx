@@ -41,13 +41,21 @@ export default function LineasAccionPage() {
 
   async function fetchAll() {
     setLoading(true)
-    const [l, p, u] = await Promise.all([
+    const [l, p, u, me] = await Promise.all([
       fetch('/api/lineas').then(r => r.json()),
       fetch('/api/proyectos').then(r => r.json()),
       fetch('/api/usuarios').then(r => r.json()),
+      fetch('/api/me').then(r => r.json()),
     ])
-    setLineas(Array.isArray(l) ? l : [])
-    setProyectos(Array.isArray(p) ? p : [])
+    const lineasData = Array.isArray(l) ? l : []
+    const proyectosData = Array.isArray(p) ? p : []
+    const meData = me as any
+    let allowedIds: string[] | null = null
+    if (meData && !meData.is_admin && meData.proyecto_ids && meData.proyecto_ids.length > 0) {
+      allowedIds = meData.proyecto_ids.map((r: any) => r.proyecto_id) as string[]
+    }
+    setLineas(allowedIds ? lineasData.filter((l: any) => allowedIds!.includes(l.proyecto_id)) : lineasData)
+    setProyectos(allowedIds ? proyectosData.filter((p: any) => allowedIds!.includes(p.id)) : proyectosData)
     setUsuarios(Array.isArray(u) ? u : [])
     setLoading(false)
   }

@@ -7,7 +7,8 @@ import { cn } from '@/lib/utils'
 import { Usuario } from '@/lib/types'
 import {
   LayoutDashboard, FolderKanban, GitBranch, CheckSquare,
-  Users, Shield, GitMerge, Menu, X, BarChart3, ChevronLeft, ChevronRight, ScrollText
+  Users, Shield, GitMerge, Menu, X, BarChart3, ChevronLeft, ChevronRight, ScrollText,
+  Bell, Settings
 } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -17,12 +18,20 @@ const NAV_ITEMS = [
   { href: '/proyectos',           label: 'Proyectos',            icon: FolderKanban,    seccion: 'proyectos' },
   { href: '/lineas-accion',       label: 'Líneas de Acción',     icon: GitBranch,       seccion: 'lineas_accion' },
   { href: '/tareas',              label: 'Tareas',               icon: CheckSquare,     seccion: 'tareas' },
+  { href: '/alertas',             label: 'Alertas',              icon: Bell,            seccion: 'alertas' },
   { href: '/usuarios',            label: 'Usuarios',             icon: Users,           seccion: 'usuarios' },
   { href: '/roles',               label: 'Roles',                icon: Shield,          seccion: 'roles' },
   { href: '/logs',                label: 'Logs',                 icon: ScrollText,      seccion: 'logs' },
+  { href: '/configuracion',       label: 'Configuración',        icon: Settings,        seccion: 'configuracion' },
 ]
 
-export default function Sidebar({ usuario }: { usuario: Usuario & { rol?: any } }) {
+export default function Sidebar({
+  usuario,
+  logoUrl,
+}: {
+  usuario: Usuario & { rol?: any }
+  logoUrl?: string | null
+}) {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
@@ -30,9 +39,12 @@ export default function Sidebar({ usuario }: { usuario: Usuario & { rol?: any } 
   const permisos = usuario.rol?.permisos ?? []
   const canSee = (seccion: string) => {
     if (usuario.is_admin) return true
+    if (seccion === 'alertas') return true
     return permisos.some((p: any) => p.seccion === seccion && p.puede_leer)
   }
   const navItems = NAV_ITEMS.filter(item => canSee(item.seccion))
+
+  const logoSrc = logoUrl ?? '/logo.png'
 
   return (
     <>
@@ -53,7 +65,7 @@ export default function Sidebar({ usuario }: { usuario: Usuario & { rol?: any } 
         <div className={cn("border-b border-white/10 flex items-center", collapsed ? "p-3 justify-center" : "p-4 gap-3")}>
           {!collapsed && (
             <>
-              <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain rounded-full flex-shrink-0"
+              <img src={logoSrc} alt="Logo" className="w-8 h-8 object-contain rounded-full flex-shrink-0"
                 onError={e => { e.currentTarget.style.display='none' }} />
               <div className="flex-1 min-w-0">
                 <p className="text-white font-bold text-sm leading-tight">SIAP</p>
@@ -63,7 +75,7 @@ export default function Sidebar({ usuario }: { usuario: Usuario & { rol?: any } 
             </>
           )}
           {collapsed && (
-            <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain rounded-full"
+            <img src={logoSrc} alt="Logo" className="w-8 h-8 object-contain rounded-full"
               onError={e => { e.currentTarget.style.display='none' }} />
           )}
           <button onClick={() => setCollapsed(!collapsed)}

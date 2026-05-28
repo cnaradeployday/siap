@@ -55,16 +55,27 @@ export default function TareasPage() {
 
   async function fetchAll() {
     setLoading(true)
-    const [t, l, u, p] = await Promise.all([
+    const [t, l, u, p, me] = await Promise.all([
       fetch('/api/tareas').then(r => r.json()),
       fetch('/api/lineas').then(r => r.json()),
       fetch('/api/usuarios').then(r => r.json()),
       fetch('/api/proyectos').then(r => r.json()),
+      fetch('/api/me').then(r => r.json()),
     ])
-    setTareas(Array.isArray(t) ? t : [])
-    setLineas(Array.isArray(l) ? l : [])
+    const tareasData = Array.isArray(t) ? t : []
+    const lineasData = Array.isArray(l) ? l : []
+    const proyectosData = Array.isArray(p) ? p : []
+    const meData = me as any
+    let allowedIds: string[] | null = null
+    if (meData && !meData.is_admin && meData.proyecto_ids && meData.proyecto_ids.length > 0) {
+      allowedIds = meData.proyecto_ids.map((r: any) => r.proyecto_id) as string[]
+    }
+    const lineasFiltradas = allowedIds ? lineasData.filter((l: any) => allowedIds!.includes(l.proyecto_id)) : lineasData
+    const lineaIds = new Set(lineasFiltradas.map((l: any) => l.id))
+    setTareas(allowedIds ? tareasData.filter((t: any) => lineaIds.has(t.linea_id)) : tareasData)
+    setLineas(lineasFiltradas)
     setUsuarios(Array.isArray(u) ? u : [])
-    setProyectos(Array.isArray(p) ? p : [])
+    setProyectos(allowedIds ? proyectosData.filter((p: any) => allowedIds!.includes(p.id)) : proyectosData)
     setLoading(false)
   }
 

@@ -140,13 +140,15 @@ export interface LogAuditoria {
 
 export const SECCIONES = [
   'dashboard_directivo',
-  'dashboard_ejecutivo', 
+  'dashboard_ejecutivo',
   'flujograma',
   'proyectos',
   'lineas_accion',
   'tareas',
   'usuarios',
   'roles',
+  'alertas',
+  'configuracion',
 ] as const
 
 export type Seccion = typeof SECCIONES[number]

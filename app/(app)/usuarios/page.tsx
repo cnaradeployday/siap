@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, Pencil, Link, Search, UserCheck, UserX, Key } from 'lucide-react'
+import { Plus, Pencil, Link, Search, UserCheck, UserX, Key, FolderKanban } from 'lucide-react'
 import PageHeader from '@/components/shared/PageHeader'
 import EmptyState from '@/components/shared/EmptyState'
 import Modal from '@/components/shared/Modal'
@@ -9,15 +9,17 @@ import Btn from '@/components/shared/Btn'
 import FormField from '@/components/shared/FormField'
 import Input from '@/components/shared/Input'
 import Select from '@/components/shared/Select'
-import { Usuario, Rol } from '@/lib/types'
+import { Usuario, Rol, Proyecto } from '@/lib/types'
 
 export default function UsuariosPage() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [roles, setRoles] = useState<Rol[]>([])
+  const [proyectos, setProyectos] = useState<Proyecto[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [enlaceModalOpen, setEnlaceModalOpen] = useState(false)
   const [passModalOpen, setPassModalOpen] = useState(false)
+  const [proyectosModalOpen, setProyectosModalOpen] = useState(false)
   const [editando, setEditando] = useState<Usuario | null>(null)
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
@@ -29,6 +31,8 @@ export default function UsuariosPage() {
   const [passNueva, setPassNueva] = useState('')
   const [passMsg, setPassMsg] = useState('')
   const [formError, setFormError] = useState('')
+  const [proyectosSeleccionados, setProyectosSeleccionados] = useState<string[]>([])
+  const [proyectosMsg, setProyectosMsg] = useState('')
 
   const [form, setForm] = useState({
     nombre: '', apellido: '', email: '', password_provisoria: '',
@@ -41,15 +45,48 @@ export default function UsuariosPage() {
 
   async function fetchAll() {
     setLoading(true)
-    const [u, r, a] = await Promise.all([
+    const [u, r, a, p] = await Promise.all([
       fetch('/api/usuarios').then(r => r.json()),
       fetch('/api/roles').then(r => r.json()),
       fetch('/api/auth-users').then(r => r.json()),
+      fetch('/api/proyectos').then(r => r.json()),
     ])
     setUsuarios(Array.isArray(u) ? u : [])
     setRoles(Array.isArray(r) ? r : [])
     setAuthUsers(Array.isArray(a) ? a : [])
+    setProyectos(Array.isArray(p) ? p : [])
     setLoading(false)
+  }
+
+  async function openProyectos(u: Usuario) {
+    setEditando(u)
+    setProyectosMsg('')
+    const ids = await fetch(`/api/usuarios/${u.id}/proyectos`).then(r => r.json())
+    setProyectosSeleccionados(Array.isArray(ids) ? ids : [])
+    setProyectosModalOpen(true)
+  }
+
+  async function handleSaveProyectos() {
+    if (!editando) return
+    setSaving(true)
+    const res = await fetch(`/api/usuarios/${editando.id}/proyectos`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ proyecto_ids: proyectosSeleccionados })
+    })
+    setSaving(false)
+    if (res.ok) {
+      setProyectosMsg('Proyectos actualizados correctamente.')
+    } else {
+      const json = await res.json()
+      setProyectosMsg(`Error: ${json.error}`)
+    }
+  }
+
+  function toggleProyecto(id: string) {
+    setProyectosSeleccionados(prev =>
+      prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
+    )
   }
 
   function openNuevo() {
@@ -256,6 +293,10 @@ export default function UsuariosPage() {
                             <Key size={13} />
                           </button>
                         )}
+                        <button onClick={() => openProyectos(u)} title="Proyectos habilitados"
+                          className="p-1.5 rounded-lg hover:bg-[#EBF8FF] text-gray-400 hover:text-[#2B6CB0] transition-colors">
+                          <FolderKanban size={13} />
+                        </button>
                         <button onClick={() => openEnlace(u)} title="Enlazar con Google"
                           className="p-1.5 rounded-lg hover:bg-[#EBF8FF] text-gray-400 hover:text-[#2B6CB0] transition-colors">
                           <Link size={13} />
@@ -355,6 +396,47 @@ export default function UsuariosPage() {
           <div className="flex justify-end gap-3">
             <Btn variant="secondary" onClick={() => setEnlaceModalOpen(false)}>Cancelar</Btn>
             <Btn onClick={handleEnlace} loading={saving} disabled={!enlaceAuthId}>Enlazar</Btn>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Proyectos Habilitados */}
+      <Modal open={proyectosModalOpen} onClose={() => setProyectosModalOpen(false)}
+        title="Proyectos habilitados">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">
+            Seleccioná los proyectos que <strong>{editando?.nombre} {editando?.apellido}</strong> puede ver.
+            Si no seleccionás ninguno, verá todos los proyectos.
+          </p>
+          <div className="max-h-72 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
+            {proyectos.length === 0 && (
+              <p className="text-sm text-gray-400 p-4 text-center">No hay proyectos disponibles</p>
+            )}
+            {proyectos.map(p => (
+              <label key={p.id} className="flex items-center gap-3 px-4 py-3 hover:bg-[#F0F4F8] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={proyectosSeleccionados.includes(p.id)}
+                  onChange={() => toggleProyecto(p.id)}
+                  className="rounded border-gray-300 text-[#2B6CB0]"
+                />
+                <span className="text-sm text-[#1B2A4A]">{p.nombre}</span>
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400">
+            {proyectosSeleccionados.length === 0
+              ? 'Sin restricción — el usuario verá todos los proyectos'
+              : `${proyectosSeleccionados.length} proyecto${proyectosSeleccionados.length !== 1 ? 's' : ''} habilitado${proyectosSeleccionados.length !== 1 ? 's' : ''}`}
+          </p>
+          {proyectosMsg && (
+            <div className={`p-3 rounded-lg text-sm ${proyectosMsg.startsWith('Error') ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
+              {proyectosMsg}
+            </div>
+          )}
+          <div className="flex justify-end gap-3">
+            <Btn variant="secondary" onClick={() => setProyectosModalOpen(false)}>Cerrar</Btn>
+            <Btn onClick={handleSaveProyectos} loading={saving}>Guardar</Btn>
           </div>
         </div>
       </Modal>
