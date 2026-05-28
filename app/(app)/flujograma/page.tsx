@@ -38,8 +38,14 @@ export default function FlujogramaPage() {
     Promise.all([
       fetch('/api/proyectos').then(r => r.json()),
       fetch('/api/usuarios').then(r => r.json()),
-    ]).then(([p, u]) => {
-      const ps = Array.isArray(p) ? p : []
+      fetch('/api/me').then(r => r.json()),
+    ]).then(([p, u, me]) => {
+      let ps: any[] = Array.isArray(p) ? p : []
+      const meData = me as any
+      if (meData && !meData.is_admin && meData.proyecto_ids && meData.proyecto_ids.length > 0) {
+        const ids = meData.proyecto_ids.map((r: any) => r.proyecto_id) as string[]
+        ps = ps.filter((proj: any) => ids.includes(proj.id))
+      }
       setProyectos(ps)
       setUsuarios(Array.isArray(u) ? u : [])
       setSeleccionados([]) // NINGUNO por default

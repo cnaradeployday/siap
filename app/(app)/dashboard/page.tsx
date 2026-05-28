@@ -23,11 +23,19 @@ export default function DashboardDirectivoPage() {
 
   async function fetchAll() {
     setLoading(true)
-    const [p, u] = await Promise.all([
+    const [p, u, me] = await Promise.all([
       fetch('/api/proyectos').then(r => r.json()),
       fetch('/api/usuarios').then(r => r.json()),
+      fetch('/api/me').then(r => r.json()),
     ])
-    setProyectos(Array.isArray(p) ? p : [])
+    const proyectosData: Proyecto[] = Array.isArray(p) ? p : []
+    const meData = me as any
+    if (meData && !meData.is_admin && meData.proyecto_ids && meData.proyecto_ids.length > 0) {
+      const ids = meData.proyecto_ids.map((r: any) => r.proyecto_id) as string[]
+      setProyectos(proyectosData.filter(p => ids.includes(p.id)))
+    } else {
+      setProyectos(proyectosData)
+    }
     setUsuarios(Array.isArray(u) ? u : [])
     setLoading(false)
   }
