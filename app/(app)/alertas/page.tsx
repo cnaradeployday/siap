@@ -160,11 +160,8 @@ export default function AlertasPage() {
                               <div className="ml-4 space-y-1">
                                 {tareas.map((t: any) => (
                                   <div key={t.id} className="flex items-center gap-2 flex-wrap text-[11px] text-gray-600 bg-red-50/50 rounded-lg px-3 py-1.5">
-                                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                                      calcularEstadoReal(t.estado, t.fecha_fin) === 'vencido' ? 'bg-red-400' :
-                                      t.estado === 'completado' ? 'bg-green-400' : 'bg-amber-400'
-                                    }`} />
                                     <span className="flex-1 min-w-0">{t.nombre}</span>
+                                    <StatusBadge estado={calcularEstadoReal(t.estado, t.fecha_fin)} size="sm" />
                                     <span className="text-gray-400 whitespace-nowrap">{formatDate(t.fecha_inicio)} → {formatDate(t.fecha_fin)}</span>
                                     {t.responsable && (
                                       <span className="text-gray-500 whitespace-nowrap">{t.responsable.apellido}, {t.responsable.nombre}</span>
