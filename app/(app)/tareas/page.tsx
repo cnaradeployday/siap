@@ -109,7 +109,11 @@ export default function TareasPage() {
       setFormError('Completá los campos obligatorios'); return
     }
     setSaving(true)
-    const payload = { ...form, fecha_fin: calcFechaFin(form.fecha_inicio, form.duracion_dias) }
+    const payload = {
+      ...form,
+      fecha_fin: calcFechaFin(form.fecha_inicio, form.duracion_dias),
+      responsable_id: form.responsable_id || null,
+    }
     const url = editando ? `/api/tareas/${editando.id}` : '/api/tareas'
     const method = editando ? 'PATCH' : 'POST'
     const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
