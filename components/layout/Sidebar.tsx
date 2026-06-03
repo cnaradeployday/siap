@@ -7,13 +7,14 @@ import { cn } from '@/lib/utils'
 import { Usuario } from '@/lib/types'
 import {
   LayoutDashboard, FolderKanban, GitBranch, CheckSquare,
-  Users, Shield, GitMerge, Menu, X, BarChart3, ChevronLeft, ChevronRight, ScrollText
+  Users, Shield, GitMerge, Menu, X, BarChart3, ChevronLeft, ChevronRight, ScrollText, Bell
 } from 'lucide-react'
 
 const NAV_ITEMS = [
   { href: '/dashboard',           label: 'Tablero Directivo',    icon: LayoutDashboard, seccion: 'dashboard_directivo' },
   { href: '/dashboard-ejecutivo', label: 'Tablero Ejecutivo',    icon: BarChart3,       seccion: 'dashboard_ejecutivo' },
   { href: '/flujograma',          label: 'Ficha de Proyecto',    icon: GitMerge,        seccion: 'flujograma' },
+  { href: '/alertas',             label: 'Alertas',              icon: Bell,            seccion: 'alertas' },
   { href: '/proyectos',           label: 'Proyectos',            icon: FolderKanban,    seccion: 'proyectos' },
   { href: '/lineas-accion',       label: 'Líneas de Acción',     icon: GitBranch,       seccion: 'lineas_accion' },
   { href: '/tareas',              label: 'Tareas',               icon: CheckSquare,     seccion: 'tareas' },

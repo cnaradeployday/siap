@@ -26,6 +26,7 @@ export default function ProyectosPage() {
   const [search, setSearch] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('')
   const [filtroPatrocinador, setFiltroPatrocinador] = useState('')
+  const [filtroResponsable, setFiltroResponsable] = useState('')
   const [sortField, setSortField] = useState<string>('nombre')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
@@ -84,14 +85,21 @@ export default function ProyectosPage() {
     else { setSortField(field); setSortDir('asc') }
   }
 
+  const lideres = usuarios.filter(u => proyectos.some(p => p.patrocinador_id === u.id))
+  const responsables = usuarios.filter(u =>
+    proyectos.some(p => ((p.lineas_accion as any[]) ?? []).some((l: any) => l.responsable?.id === u.id))
+  )
+
   const filtered = proyectos
     .filter(p => {
       const q = search.toLowerCase()
+      const lineas = (p.lineas_accion as any[]) ?? []
       const matchSearch = !q || p.nombre.toLowerCase().includes(q) ||
         (p.patrocinador as any)?.nombre?.toLowerCase().includes(q)
       const matchEstado = !filtroEstado || p.estado === filtroEstado
       const matchPat = !filtroPatrocinador || p.patrocinador_id === filtroPatrocinador
-      return matchSearch && matchEstado && matchPat
+      const matchResp = !filtroResponsable || lineas.some((l: any) => l.responsable?.id === filtroResponsable)
+      return matchSearch && matchEstado && matchPat && matchResp
     })
     .sort((a, b) => {
       const av = (a as any)[sortField] ?? ''
@@ -127,7 +135,12 @@ export default function ProyectosPage() {
         <select value={filtroPatrocinador} onChange={e => setFiltroPatrocinador(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]">
           <option value="">Todos los líderes</option>
-          {usuarios.map(u => <option key={u.id} value={u.id}>{u.apellido}, {u.nombre}</option>)}
+          {lideres.map(u => <option key={u.id} value={u.id}>{u.apellido}, {u.nombre}</option>)}
+        </select>
+        <select value={filtroResponsable} onChange={e => setFiltroResponsable(e.target.value)}
+          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]">
+          <option value="">Todos los responsables</option>
+          {responsables.map(u => <option key={u.id} value={u.id}>{u.apellido}, {u.nombre}</option>)}
         </select>
       </div>
 

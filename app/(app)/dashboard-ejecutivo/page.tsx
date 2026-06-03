@@ -13,7 +13,7 @@ export default function DashboardEjecutivoPage() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [filtroEstado, setFiltroEstado] = useState<string>('completado')
+  const [filtroEstado, setFiltroEstado] = useState<string>('')
   const [filtroPatrocinador, setFiltroPatrocinador] = useState('')
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set())
   const [tareasExpandidas, setTareasExpandidas] = useState<Set<string>>(new Set())

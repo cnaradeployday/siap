@@ -147,6 +147,7 @@ export const SECCIONES = [
   'tareas',
   'usuarios',
   'roles',
+  'alertas',
 ] as const
 
 export type Seccion = typeof SECCIONES[number]
