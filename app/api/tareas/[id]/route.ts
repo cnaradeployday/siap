@@ -17,7 +17,7 @@ function calcFechaFin(fechaInicio: string, duracionDias: number): string {
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const body = await req.json()
-  const { dependencias, ...tareaData } = body
+  const { dependencias, proyecto_id, ...tareaData } = body
 
   if (tareaData.fecha_inicio && tareaData.duracion_dias) {
     tareaData.fecha_fin = calcFechaFin(tareaData.fecha_inicio, Number(tareaData.duracion_dias))
