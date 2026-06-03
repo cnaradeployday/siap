@@ -23,6 +23,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     tareaData.fecha_fin = calcFechaFin(tareaData.fecha_inicio, Number(tareaData.duracion_dias))
   }
 
+  // Si la fecha_fin resultante es futura y el estado es 'vencido', resetear a 'en_proceso'
+  if (tareaData.fecha_fin && tareaData.estado === 'vencido') {
+    if (new Date(tareaData.fecha_fin + 'T23:59:59') >= new Date()) {
+      tareaData.estado = 'en_proceso'
+    }
+  }
+
   const { data, error } = await supabaseAdmin
     .from('tareas').update(tareaData).eq('id', id).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
