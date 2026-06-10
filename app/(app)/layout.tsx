@@ -25,30 +25,26 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   if (!usuario || !usuario.activo) redirect('/login?error=inactivo')
 
-  // Super admin sin org activa → ir a configuración
+  // Para super admin: siempre usar la cookie active_org_id
   if (usuario.is_super_admin) {
     const cookieStore = await cookies()
     const activeOrgId = cookieStore.get('active_org_id')?.value
     if (!activeOrgId) redirect('/configuracion')
   }
 
-  // Obtener org del usuario
+  // Obtener org: super admin usa cookie, usuario normal usa su organizacion_id
   let org: Organizacion | null = null
-  if (usuario.organizacion_id) {
-    const { data } = await supabaseAdmin
-      .from('organizaciones')
-      .select('*')
-      .eq('id', usuario.organizacion_id)
-      .single()
-    org = data
-  } else if (usuario.is_super_admin) {
+
+  if (usuario.is_super_admin) {
     const cookieStore = await cookies()
-    const activeOrgId = cookieStore.get('active_org_id')?.value
-    if (activeOrgId) {
-      const { data } = await supabaseAdmin
-        .from('organizaciones').select('*').eq('id', activeOrgId).single()
-      org = data
-    }
+    const activeOrgId = cookieStore.get('active_org_id')?.value!
+    const { data } = await supabaseAdmin
+      .from('organizaciones').select('*').eq('id', activeOrgId).single()
+    org = data
+  } else if (usuario.organizacion_id) {
+    const { data } = await supabaseAdmin
+      .from('organizaciones').select('*').eq('id', usuario.organizacion_id).single()
+    org = data
   }
 
   return (

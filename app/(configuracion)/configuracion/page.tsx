@@ -1,12 +1,20 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, Pencil, LogIn, LogOut, Users, Palette } from 'lucide-react'
+import { Plus, Pencil, LogIn, Users, Palette, Sun, Moon } from 'lucide-react'
 import { Organizacion, Usuario } from '@/lib/types'
 import { useRouter } from 'next/navigation'
 
 interface OrgConUsuarios extends Organizacion {
   usuarios?: Usuario[]
+}
+
+const FORM_DEFAULT = {
+  nombre: '',
+  texto_sidebar: 'Sistema Administración Proyectos',
+  color_primario: '#1B2A4A',
+  color_acento: '#2B6CB0',
+  tema: 'dark' as 'dark' | 'light',
 }
 
 export default function ConfiguracionPage() {
@@ -21,21 +29,14 @@ export default function ConfiguracionPage() {
   const [saving, setSaving] = useState(false)
   const [entering, setEntering] = useState<string | null>(null)
   const [formError, setFormError] = useState('')
-
-  const [form, setForm] = useState({
-    nombre: '',
-    texto_sidebar: 'Sistema Administración Proyectos',
-    color_primario: '#1B2A4A',
-    color_acento: '#2B6CB0',
-  })
-
+  const [form, setForm] = useState(FORM_DEFAULT)
   const [usuariosSeleccionados, setUsuariosSeleccionados] = useState<string[]>([])
 
   useEffect(() => { fetchAll() }, [])
 
   async function fetchAll() {
     setLoading(true)
-    const [orgsData, usuariosData] = await Promise.all([
+    const [orgsData] = await Promise.all([
       fetch('/api/organizaciones').then(r => r.json()),
       fetchTodosUsuarios(),
     ])
@@ -43,8 +44,7 @@ export default function ConfiguracionPage() {
     setLoading(false)
   }
 
-  async function fetchTodosUsuarios(): Promise<void> {
-    // Necesitamos todos los usuarios sin filtro de org para poder asignarlos
+  async function fetchTodosUsuarios() {
     const res = await fetch('/api/super/usuarios').then(r => r.json())
     setTodosUsuarios(Array.isArray(res) ? res : [])
   }
@@ -52,7 +52,7 @@ export default function ConfiguracionPage() {
   function openNueva() {
     setEditando(null)
     setFormError('')
-    setForm({ nombre: '', texto_sidebar: 'Sistema Administración Proyectos', color_primario: '#1B2A4A', color_acento: '#2B6CB0' })
+    setForm(FORM_DEFAULT)
     setModalOpen(true)
   }
 
@@ -64,6 +64,7 @@ export default function ConfiguracionPage() {
       texto_sidebar: org.texto_sidebar,
       color_primario: org.color_primario,
       color_acento: org.color_acento,
+      tema: org.tema ?? 'dark',
     })
     setModalOpen(true)
   }
@@ -100,13 +101,11 @@ export default function ConfiguracionPage() {
     if (!orgSeleccionada) return
     setSaving(true)
 
-    // Asignar usuarios seleccionados a esta org, desasignar los que se quitaron
     const usuariosDeEstaOrg = todosUsuarios.filter(u => u.organizacion_id === orgSeleccionada.id).map(u => u.id)
     const aAgregar = usuariosSeleccionados.filter(id => !usuariosDeEstaOrg.includes(id))
     const aQuitar = usuariosDeEstaOrg.filter(id => !usuariosSeleccionados.includes(id))
 
     const ops: Promise<any>[] = []
-
     for (const id of aAgregar) {
       ops.push(fetch(`/api/super/usuarios/${id}`, {
         method: 'PATCH',
@@ -114,7 +113,6 @@ export default function ConfiguracionPage() {
         body: JSON.stringify({ organizacion_id: orgSeleccionada.id }),
       }))
     }
-
     for (const id of aQuitar) {
       ops.push(fetch(`/api/super/usuarios/${id}`, {
         method: 'PATCH',
@@ -145,6 +143,11 @@ export default function ConfiguracionPage() {
     )
   }
 
+  // Preview del sidebar en el modal
+  const previewIsDark = form.tema === 'dark'
+  const previewText   = previewIsDark ? '#ffffff' : '#1a1a1a'
+  const previewMuted  = previewIsDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)'
+
   return (
     <div className="max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -171,8 +174,7 @@ export default function ConfiguracionPage() {
           {orgs.map(org => {
             const cantUsuarios = todosUsuarios.filter(u => u.organizacion_id === org.id).length
             return (
-              <div key={org.id}
-                className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4">
+              <div key={org.id} className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4">
                 {/* Preview colores */}
                 <div className="w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center"
                   style={{ backgroundColor: org.color_primario }}>
@@ -182,6 +184,10 @@ export default function ConfiguracionPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-semibold text-[#1B2A4A]">{org.nombre}</p>
+                    <span className={`text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${org.tema === 'dark' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                      {org.tema === 'dark' ? <Moon size={10} /> : <Sun size={10} />}
+                      {org.tema === 'dark' ? 'Oscuro' : 'Claro'}
+                    </span>
                     {!org.activo && (
                       <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Inactiva</span>
                     )}
@@ -222,10 +228,10 @@ export default function ConfiguracionPage() {
         </div>
       )}
 
-      {/* Modal Crear/Editar Org */}
+      {/* Modal Crear/Editar */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-semibold text-[#1B2A4A] mb-5">
               {editando ? 'Editar organización' : 'Nueva organización'}
             </h2>
@@ -249,10 +255,33 @@ export default function ConfiguracionPage() {
                   placeholder="Ej: Sistema Administración Proyectos" />
               </div>
 
+              {/* Tema */}
+              <div>
+                <label className="block text-sm font-medium text-[#1B2A4A] mb-2">Modo del sidebar</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['dark', 'light'] as const).map(t => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, tema: t }))}
+                      className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${
+                        form.tema === t
+                          ? 'border-[#2B6CB0] bg-[#EBF8FF] text-[#2B6CB0]'
+                          : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                      }`}
+                    >
+                      {t === 'dark' ? <Moon size={14} /> : <Sun size={14} />}
+                      {t === 'dark' ? 'Oscuro' : 'Claro'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Colores */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-[#1B2A4A] mb-1.5 flex items-center gap-1.5">
-                    <Palette size={13} /> Color primario (sidebar)
+                    <Palette size={13} /> Color primario
                   </label>
                   <div className="flex items-center gap-2">
                     <input type="color" value={form.color_primario}
@@ -274,18 +303,30 @@ export default function ConfiguracionPage() {
                 </div>
               </div>
 
-              {/* Preview */}
-              <div className="rounded-xl overflow-hidden border border-gray-100">
-                <div className="px-4 py-3 flex items-center gap-3" style={{ backgroundColor: form.color_primario }}>
-                  <div className="w-6 h-6 rounded-full" style={{ backgroundColor: form.color_acento }} />
-                  <div>
-                    <p className="text-white font-bold text-xs">SIAP</p>
-                    <p className="text-white/50 text-[9px]">{form.texto_sidebar || '—'}</p>
+              {/* Preview sidebar */}
+              <div>
+                <label className="block text-sm font-medium text-[#1B2A4A] mb-1.5">Vista previa</label>
+                <div className="rounded-xl overflow-hidden border border-gray-200">
+                  <div className="px-4 py-3 flex items-center gap-3" style={{ backgroundColor: form.color_primario }}>
+                    <div className="w-6 h-6 rounded-full flex-shrink-0" style={{ backgroundColor: form.color_acento }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-xs leading-tight" style={{ color: previewText }}>SIAP</p>
+                      <p className="text-[9px] leading-tight" style={{ color: previewMuted }}>{form.texto_sidebar || '—'}</p>
+                      <p className="text-[9px]" style={{ color: previewMuted }}>{form.nombre || 'Nombre org'}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="px-4 py-2 bg-white">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-white" style={{ backgroundColor: form.color_acento }}>
-                    Vista previa del acento
+                  {/* Ítem activo ejemplo */}
+                  <div className="px-2 py-2" style={{ backgroundColor: form.color_primario }}>
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-white"
+                      style={{ backgroundColor: form.color_acento }}>
+                      <div className="w-3.5 h-3.5 rounded-sm bg-white/30" />
+                      Dashboard
+                    </div>
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs mt-0.5"
+                      style={{ color: previewMuted }}>
+                      <div className="w-3.5 h-3.5 rounded-sm" style={{ backgroundColor: previewMuted, opacity: 0.3 }} />
+                      Proyectos
+                    </div>
                   </div>
                 </div>
               </div>
@@ -305,7 +346,7 @@ export default function ConfiguracionPage() {
         </div>
       )}
 
-      {/* Modal Asignación de Usuarios */}
+      {/* Modal Usuarios */}
       {usuariosModalOpen && orgSeleccionada && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
@@ -345,9 +386,7 @@ export default function ConfiguracionPage() {
               )}
             </div>
 
-            <p className="text-xs text-gray-400 mt-3">
-              {usuariosSeleccionados.length} usuario(s) seleccionado(s)
-            </p>
+            <p className="text-xs text-gray-400 mt-3">{usuariosSeleccionados.length} usuario(s) seleccionado(s)</p>
 
             <div className="flex justify-end gap-3 mt-5">
               <button onClick={() => setUsuariosModalOpen(false)}

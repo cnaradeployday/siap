@@ -6,6 +6,8 @@ export interface Organizacion {
   texto_sidebar: string
   color_primario: string
   color_acento: string
+  logo_url: string | null
+  tema: 'dark' | 'light'
   activo: boolean
   created_at: string
   updated_at: string
