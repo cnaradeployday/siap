@@ -4,7 +4,6 @@ import { NextResponse, type NextRequest } from 'next/server'
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // No interceptar API routes ni archivos estáticos
   if (
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||

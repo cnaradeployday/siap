@@ -14,6 +14,13 @@ function LoginContent() {
   const [loginError, setLoginError] = useState('')
   const [showPass, setShowPass] = useState(false)
 
+  // Super admin modal
+  const [adminModalOpen, setAdminModalOpen] = useState(false)
+  const [adminEmail, setAdminEmail] = useState('')
+  const [adminPass, setAdminPass] = useState('')
+  const [adminLoading, setAdminLoading] = useState(false)
+  const [adminError, setAdminError] = useState('')
+
   const errorMessages: Record<string, string> = {
     sin_acceso: 'Tu cuenta no tiene acceso al sistema. Contactá al administrador.',
     inactivo: 'Tu cuenta está desactivada. Contactá al administrador.',
@@ -44,7 +51,7 @@ function LoginContent() {
     if (!user) { setLoginError('Error al obtener usuario'); setLoading(false); return }
 
     const { data: usuarioApp } = await supabase
-      .from('usuarios').select('id, activo').eq('auth_user_id', user.id).single()
+      .from('usuarios').select('id, activo, is_super_admin').eq('auth_user_id', user.id).single()
 
     if (!usuarioApp) {
       const { data: porEmail } = await supabase
@@ -62,11 +69,55 @@ function LoginContent() {
       return
     }
 
-    router.push('/dashboard')
+    if (usuarioApp?.is_super_admin) {
+      router.push('/configuracion')
+    } else {
+      router.push('/dashboard')
+    }
+  }
+
+  async function handleAdminLogin(e: React.FormEvent) {
+    e.preventDefault()
+    if (!adminEmail || !adminPass) { setAdminError('Completá email y contraseña'); return }
+    setAdminLoading(true)
+    setAdminError('')
+
+    const supabase = createClient()
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: adminEmail,
+      password: adminPass,
+    })
+    if (authError) {
+      setAdminError('Email o contraseña incorrectos')
+      setAdminLoading(false)
+      return
+    }
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setAdminError('Error de autenticación'); setAdminLoading(false); return }
+
+    const { data: u } = await supabase
+      .from('usuarios').select('is_super_admin, activo').eq('auth_user_id', user.id).single()
+
+    if (!u?.is_super_admin) {
+      await supabase.auth.signOut()
+      setAdminError('Este usuario no tiene acceso de super administrador.')
+      setAdminLoading(false)
+      return
+    }
+
+    if (!u.activo) {
+      await supabase.auth.signOut()
+      setAdminError('Tu cuenta está desactivada.')
+      setAdminLoading(false)
+      return
+    }
+
+    router.push('/configuracion')
   }
 
   return (
-    <div className="min-h-screen bg-[#1B2A4A] flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-[#1B2A4A] flex flex-col items-center justify-center p-4 relative">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center mb-10">
@@ -154,6 +205,60 @@ function LoginContent() {
           Ministerio de Economía — República Argentina
         </p>
       </div>
+
+      {/* Punto ámbar — acceso super admin */}
+      <button
+        onClick={() => { setAdminModalOpen(true); setAdminError(''); setAdminEmail(''); setAdminPass('') }}
+        className="absolute bottom-4 left-4 w-3 h-3 rounded-full bg-amber-400 hover:bg-amber-300 transition-colors opacity-60 hover:opacity-100"
+        title=""
+        aria-label=""
+      />
+
+      {/* Modal super admin */}
+      {adminModalOpen && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          onClick={e => { if (e.target === e.currentTarget) setAdminModalOpen(false) }}>
+          <div className="bg-[#1B2A4A] border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 className="text-white font-semibold mb-1">Administración</h3>
+            <p className="text-white/40 text-xs mb-5">Acceso restringido</p>
+
+            {adminError && (
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+                {adminError}
+              </div>
+            )}
+
+            <form onSubmit={handleAdminLogin} className="space-y-3">
+              <input
+                type="email"
+                value={adminEmail}
+                onChange={e => setAdminEmail(e.target.value)}
+                placeholder="Email"
+                autoComplete="off"
+                className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-[#C9A84C] transition-colors text-sm"
+              />
+              <input
+                type="password"
+                value={adminPass}
+                onChange={e => setAdminPass(e.target.value)}
+                placeholder="Contraseña"
+                autoComplete="off"
+                className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-[#C9A84C] transition-colors text-sm"
+              />
+              <div className="flex gap-2 pt-1">
+                <button type="button" onClick={() => setAdminModalOpen(false)}
+                  className="flex-1 py-2.5 rounded-xl text-white/50 hover:text-white border border-white/10 text-sm transition-colors">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={adminLoading}
+                  className="flex-1 py-2.5 rounded-xl bg-[#C9A84C] hover:bg-[#b8963e] text-[#1B2A4A] font-semibold text-sm transition-colors disabled:opacity-50">
+                  {adminLoading ? '...' : 'Ingresar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { getOrgContext } from '@/lib/get-org-context'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,20 +9,27 @@ const supabaseAdmin = createClient(
 )
 
 export async function GET() {
+  const ctx = await getOrgContext()
+  if (!ctx) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
   const { data, error } = await supabaseAdmin
     .from('roles')
     .select('*, permisos:permisos_rol(*)')
+    .eq('organizacion_id', ctx.orgId)
     .order('nombre')
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json(data)
 }
 
 export async function POST(req: Request) {
+  const ctx = await getOrgContext()
+  if (!ctx) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
   const { nombre, descripcion, permisos } = await req.json()
   if (!nombre) return NextResponse.json({ error: 'El nombre es requerido' }, { status: 400 })
 
   const { data: rol, error } = await supabaseAdmin
-    .from('roles').insert({ nombre, descripcion }).select().single()
+    .from('roles').insert({ nombre, descripcion, organizacion_id: ctx.orgId }).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
   if (permisos?.length) {

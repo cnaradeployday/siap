@@ -1,5 +1,16 @@
 export type EstadoItem = 'pendiente' | 'en_proceso' | 'bloqueado' | 'vencido' | 'completado'
 
+export interface Organizacion {
+  id: string
+  nombre: string
+  texto_sidebar: string
+  color_primario: string
+  color_acento: string
+  activo: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface Rol {
   id: string
   nombre: string
@@ -22,12 +33,15 @@ export interface Usuario {
   email: string | null
   auth_user_id: string | null
   rol_id: string | null
+  organizacion_id: string | null
   is_admin: boolean
+  is_super_admin: boolean
   activo: boolean
   avatar_url: string | null
   created_at: string
   updated_at: string
   rol?: Rol
+  organizacion?: Organizacion
 }
 
 export interface Proyecto {

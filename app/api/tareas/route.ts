@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { getOrgContext } from '@/lib/get-org-context'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,6 +15,9 @@ function calcFechaFin(fechaInicio: string, duracionDias: number): string {
 }
 
 export async function GET(req: Request) {
+  const ctx = await getOrgContext()
+  if (!ctx) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
   const { searchParams } = new URL(req.url)
   const lineaId = searchParams.get('lineaId')
 
@@ -36,6 +40,7 @@ export async function GET(req: Request) {
         depende_de:tareas!dependencias_tareas_depende_de_id_fkey(id,nombre)
       )
     `)
+    .eq('organizacion_id', ctx.orgId)
     .is('deleted_at', null)
     .order('orden')
 
@@ -47,10 +52,12 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const ctx = await getOrgContext()
+  if (!ctx) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
   const body = await req.json()
   const { dependencias, proyecto_id, ...tareaData } = body
 
-  // Validar máximo 3 tareas por línea de acción
   if (tareaData.linea_id) {
     const { count } = await supabaseAdmin
       .from('tareas')
@@ -65,6 +72,8 @@ export async function POST(req: Request) {
   if (tareaData.fecha_inicio && tareaData.duracion_dias) {
     tareaData.fecha_fin = calcFechaFin(tareaData.fecha_inicio, Number(tareaData.duracion_dias))
   }
+
+  tareaData.organizacion_id = ctx.orgId
 
   const { data, error } = await supabaseAdmin
     .from('tareas').insert(tareaData).select().single()
