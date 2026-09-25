@@ -1,20 +1,11 @@
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
-
-const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.toLowerCase()
-
-// Extrae el slug de organización del subdominio (ej: "corrientes" de corrientes.tudominio.com)
-function getOrgSlugFromHost(host: string | null): string | null {
-  if (!ROOT_DOMAIN || !host) return null
-  const hostname = host.split(':')[0].toLowerCase()
-  if (hostname === ROOT_DOMAIN || hostname === `www.${ROOT_DOMAIN}`) return null
-  if (!hostname.endsWith(`.${ROOT_DOMAIN}`)) return null
-  return hostname.slice(0, -(ROOT_DOMAIN.length + 1))
-}
+import { ROOT_DOMAIN, getCookieDomain } from '@/lib/root-domain'
+import { getOrgSlugFromHost } from '@/lib/org-slug-from-host'
 
 async function resolveOrgIdFromSubdomain(request: NextRequest): Promise<string | null> {
-  const orgSlug = getOrgSlugFromHost(request.headers.get('host'))
+  const orgSlug = getOrgSlugFromHost(request.headers.get('host'), ROOT_DOMAIN)
   if (!orgSlug) return null
 
   const supabaseAdmin = createClient(
@@ -39,6 +30,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // Resolver organización activa a partir del subdominio ANTES de crear el
+  // cliente de supabase, para que quede disponible en cookies() durante
+  // este mismo request (no solo en el próximo, vía Set-Cookie).
+  const orgId = await resolveOrgIdFromSubdomain(request)
+  if (orgId) request.cookies.set('active_org_id', orgId)
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -51,7 +48,7 @@ export async function middleware(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(name, value, { ...options, domain: getCookieDomain() })
           )
         },
       },
@@ -60,14 +57,13 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const orgId = await resolveOrgIdFromSubdomain(request)
-
   const applyOrgCookie = (response: NextResponse) => {
     if (orgId) {
       response.cookies.set('active_org_id', orgId, {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
+        domain: getCookieDomain(),
         maxAge: 60 * 60 * 8, // 8 horas
       })
     }

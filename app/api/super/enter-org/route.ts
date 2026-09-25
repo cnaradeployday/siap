@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
+import { getCookieDomain } from '@/lib/root-domain'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -28,10 +29,17 @@ export async function POST(req: Request) {
       httpOnly: true,
       sameSite: 'lax',
       path: '/',
+      domain: getCookieDomain(),
       maxAge: 60 * 60 * 8, // 8 horas
     })
   } else {
-    response.cookies.delete('active_org_id')
+    response.cookies.set('active_org_id', '', {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      domain: getCookieDomain(),
+      maxAge: 0,
+    })
   }
 
   return response
