@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
+import { slugify } from '@/lib/slug'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,8 +35,25 @@ export async function POST(req: Request) {
   if (!ok) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const body = await req.json()
+
+  const base = slugify(body.slug || body.nombre || '')
+  if (!base) return NextResponse.json({ error: 'No se pudo generar el subdominio a partir del nombre' }, { status: 400 })
+
+  const { data: existentes } = await supabaseAdmin
+    .from('organizaciones')
+    .select('slug')
+    .like('slug', `${base}%`)
+
+  const tomados = new Set((existentes ?? []).map(o => o.slug))
+  let slug = base
+  let n = 2
+  while (tomados.has(slug)) {
+    slug = `${base}-${n}`
+    n++
+  }
+
   const { data, error } = await supabaseAdmin
-    .from('organizaciones').insert(body).select().single()
+    .from('organizaciones').insert({ ...body, slug }).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json(data)
 }

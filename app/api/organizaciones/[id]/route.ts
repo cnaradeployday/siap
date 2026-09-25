@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
+import { slugify } from '@/lib/slug'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,6 +24,20 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const { id } = await params
   const body = await req.json()
+
+  if (typeof body.slug === 'string' && body.slug.trim()) {
+    const slug = slugify(body.slug)
+    if (!slug) return NextResponse.json({ error: 'Subdominio inválido' }, { status: 400 })
+
+    const { data: existente } = await supabaseAdmin
+      .from('organizaciones').select('id').eq('slug', slug).neq('id', id).maybeSingle()
+    if (existente) return NextResponse.json({ error: 'Ese subdominio ya está en uso' }, { status: 400 })
+
+    body.slug = slug
+  } else {
+    delete body.slug
+  }
+
   const { data, error } = await supabaseAdmin
     .from('organizaciones').update(body).eq('id', id).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
