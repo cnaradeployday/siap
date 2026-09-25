@@ -1,16 +1,17 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, Pencil, LogIn, Users, Palette, Sun, Moon } from 'lucide-react'
+import { Plus, Pencil, LogIn, Users, Palette, Sun, Moon, ImagePlus, X } from 'lucide-react'
 import { Organizacion, Usuario } from '@/lib/types'
 import { useRouter } from 'next/navigation'
 import { slugify } from '@/lib/slug'
+import { ROOT_DOMAIN, getOrgUrl } from '@/lib/root-domain'
 
 interface OrgConUsuarios extends Organizacion {
   usuarios?: Usuario[]
 }
 
-const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'tudominio.com'
+const ROOT_DOMAIN_PREVIEW = ROOT_DOMAIN || 'tudominio.com'
 
 const FORM_DEFAULT = {
   nombre: '',
@@ -19,6 +20,7 @@ const FORM_DEFAULT = {
   color_primario: '#1B2A4A',
   color_acento: '#2B6CB0',
   tema: 'dark' as 'dark' | 'light',
+  logo_url: null as string | null,
 }
 
 export default function ConfiguracionPage() {
@@ -35,6 +37,7 @@ export default function ConfiguracionPage() {
   const [formError, setFormError] = useState('')
   const [form, setForm] = useState(FORM_DEFAULT)
   const [slugManual, setSlugManual] = useState(false)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
   const [usuariosSeleccionados, setUsuariosSeleccionados] = useState<string[]>([])
 
   useEffect(() => { fetchAll() }, [])
@@ -72,9 +75,22 @@ export default function ConfiguracionPage() {
       color_primario: org.color_primario,
       color_acento: org.color_acento,
       tema: org.tema ?? 'dark',
+      logo_url: org.logo_url ?? null,
     })
     setSlugManual(true)
     setModalOpen(true)
+  }
+
+  async function handleLogoUpload(file: File) {
+    setFormError('')
+    setUploadingLogo(true)
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await fetch('/api/organizaciones/logo', { method: 'POST', body: fd })
+    const data = await res.json()
+    setUploadingLogo(false)
+    if (!res.ok) { setFormError(data.error ?? 'Error al subir el logo'); return }
+    setForm(f => ({ ...f, logo_url: data.url }))
   }
 
   function handleNombreChange(nombre: string) {
@@ -144,14 +160,19 @@ export default function ConfiguracionPage() {
     setSaving(false)
   }
 
-  async function handleEntrar(orgId: string) {
-    setEntering(orgId)
+  async function handleEntrar(org: OrgConUsuarios) {
+    setEntering(org.id)
     await fetch('/api/super/enter-org', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ org_id: orgId }),
+      body: JSON.stringify({ org_id: org.id }),
     })
-    router.push('/dashboard')
+    const orgUrl = getOrgUrl(org.slug)
+    if (orgUrl) {
+      window.location.href = orgUrl
+    } else {
+      router.push('/dashboard')
+    }
   }
 
   function toggleUsuario(id: string) {
@@ -192,11 +213,17 @@ export default function ConfiguracionPage() {
             const cantUsuarios = todosUsuarios.filter(u => u.organizacion_id === org.id).length
             return (
               <div key={org.id} className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4">
-                {/* Preview colores */}
-                <div className="w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center"
-                  style={{ backgroundColor: org.color_primario }}>
-                  <div className="w-4 h-4 rounded-full" style={{ backgroundColor: org.color_acento }} />
-                </div>
+                {/* Logo o preview de colores */}
+                {org.logo_url ? (
+                  <div className="w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center bg-gray-50 border border-gray-100 overflow-hidden">
+                    <img src={org.logo_url} alt="Logo" className="w-full h-full object-contain" />
+                  </div>
+                ) : (
+                  <div className="w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center"
+                    style={{ backgroundColor: org.color_primario }}>
+                    <div className="w-4 h-4 rounded-full" style={{ backgroundColor: org.color_acento }} />
+                  </div>
+                )}
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -210,7 +237,7 @@ export default function ConfiguracionPage() {
                     )}
                   </div>
                   <p className="text-xs text-gray-400 mt-0.5">{org.texto_sidebar}</p>
-                  <p className="text-xs text-[#2B6CB0] font-mono mt-0.5">{org.slug}.{ROOT_DOMAIN}</p>
+                  <p className="text-xs text-[#2B6CB0] font-mono mt-0.5">{org.slug}.{ROOT_DOMAIN_PREVIEW}</p>
                   <div className="flex items-center gap-3 mt-1">
                     <span className="text-xs text-gray-400 flex items-center gap-1">
                       <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: org.color_primario }} />
@@ -233,7 +260,7 @@ export default function ConfiguracionPage() {
                     <Pencil size={15} />
                   </button>
                   <button
-                    onClick={() => handleEntrar(org.id)}
+                    onClick={() => handleEntrar(org)}
                     disabled={entering === org.id}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-[#1B2A4A] hover:bg-[#2B6CB0] text-white transition-colors disabled:opacity-50">
                     <LogIn size={13} />
@@ -272,8 +299,40 @@ export default function ConfiguracionPage() {
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]"
                   placeholder="ej-ministerio-economia" />
                 <p className="text-xs text-gray-400 mt-1">
-                  {form.slug || '—'}.{ROOT_DOMAIN}
+                  {form.slug || '—'}.{ROOT_DOMAIN_PREVIEW}
                 </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#1B2A4A] mb-1.5">Logo</label>
+                <div className="flex items-center gap-3">
+                  <div className="w-14 h-14 rounded-xl border border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0 bg-gray-50">
+                    {form.logo_url ? (
+                      <img src={form.logo_url} alt="Logo" className="w-full h-full object-contain" />
+                    ) : (
+                      <ImagePlus size={20} className="text-gray-300" />
+                    )}
+                  </div>
+                  <div className="flex-1 flex items-center gap-2">
+                    <label className="cursor-pointer px-3 py-2 rounded-lg text-xs font-medium text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors">
+                      {uploadingLogo ? 'Subiendo...' : form.logo_url ? 'Cambiar' : 'Subir logo'}
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                        className="hidden"
+                        disabled={uploadingLogo}
+                        onChange={e => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f); e.target.value = '' }}
+                      />
+                    </label>
+                    {form.logo_url && (
+                      <button type="button" onClick={() => setForm(f => ({ ...f, logo_url: null }))}
+                        className="p-2 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors">
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">PNG, JPG, WEBP o SVG. Máximo 2MB.</p>
               </div>
 
               <div>
@@ -336,7 +395,11 @@ export default function ConfiguracionPage() {
                 <label className="block text-sm font-medium text-[#1B2A4A] mb-1.5">Vista previa</label>
                 <div className="rounded-xl overflow-hidden border border-gray-200">
                   <div className="px-4 py-3 flex items-center gap-3" style={{ backgroundColor: form.color_primario }}>
-                    <div className="w-6 h-6 rounded-full flex-shrink-0" style={{ backgroundColor: form.color_acento }} />
+                    {form.logo_url ? (
+                      <img src={form.logo_url} alt="Logo" className="w-6 h-6 rounded-full object-contain flex-shrink-0" />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full flex-shrink-0" style={{ backgroundColor: form.color_acento }} />
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-xs leading-tight" style={{ color: previewText }}>SIAP</p>
                       <p className="text-[9px] leading-tight" style={{ color: previewMuted }}>{form.texto_sidebar || '—'}</p>
