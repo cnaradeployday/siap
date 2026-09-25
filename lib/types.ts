@@ -3,6 +3,7 @@ export type EstadoItem = 'pendiente' | 'en_proceso' | 'bloqueado' | 'vencido' | 
 export interface Organizacion {
   id: string
   nombre: string
+  slug: string
   texto_sidebar: string
   color_primario: string
   color_acento: string

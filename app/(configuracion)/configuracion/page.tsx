@@ -4,13 +4,17 @@ import { useEffect, useState } from 'react'
 import { Plus, Pencil, LogIn, Users, Palette, Sun, Moon } from 'lucide-react'
 import { Organizacion, Usuario } from '@/lib/types'
 import { useRouter } from 'next/navigation'
+import { slugify } from '@/lib/slug'
 
 interface OrgConUsuarios extends Organizacion {
   usuarios?: Usuario[]
 }
 
+const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'tudominio.com'
+
 const FORM_DEFAULT = {
   nombre: '',
+  slug: '',
   texto_sidebar: 'Sistema Administración Proyectos',
   color_primario: '#1B2A4A',
   color_acento: '#2B6CB0',
@@ -30,6 +34,7 @@ export default function ConfiguracionPage() {
   const [entering, setEntering] = useState<string | null>(null)
   const [formError, setFormError] = useState('')
   const [form, setForm] = useState(FORM_DEFAULT)
+  const [slugManual, setSlugManual] = useState(false)
   const [usuariosSeleccionados, setUsuariosSeleccionados] = useState<string[]>([])
 
   useEffect(() => { fetchAll() }, [])
@@ -53,6 +58,7 @@ export default function ConfiguracionPage() {
     setEditando(null)
     setFormError('')
     setForm(FORM_DEFAULT)
+    setSlugManual(false)
     setModalOpen(true)
   }
 
@@ -61,12 +67,23 @@ export default function ConfiguracionPage() {
     setFormError('')
     setForm({
       nombre: org.nombre,
+      slug: org.slug ?? '',
       texto_sidebar: org.texto_sidebar,
       color_primario: org.color_primario,
       color_acento: org.color_acento,
       tema: org.tema ?? 'dark',
     })
+    setSlugManual(true)
     setModalOpen(true)
+  }
+
+  function handleNombreChange(nombre: string) {
+    setForm(f => ({ ...f, nombre, slug: slugManual ? f.slug : slugify(nombre) }))
+  }
+
+  function handleSlugChange(slug: string) {
+    setSlugManual(true)
+    setForm(f => ({ ...f, slug: slugify(slug) }))
   }
 
   function openUsuarios(org: Organizacion) {
@@ -193,6 +210,7 @@ export default function ConfiguracionPage() {
                     )}
                   </div>
                   <p className="text-xs text-gray-400 mt-0.5">{org.texto_sidebar}</p>
+                  <p className="text-xs text-[#2B6CB0] font-mono mt-0.5">{org.slug}.{ROOT_DOMAIN}</p>
                   <div className="flex items-center gap-3 mt-1">
                     <span className="text-xs text-gray-400 flex items-center gap-1">
                       <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: org.color_primario }} />
@@ -243,9 +261,19 @@ export default function ConfiguracionPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-[#1B2A4A] mb-1.5">Nombre</label>
-                <input value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))}
+                <input value={form.nombre} onChange={e => handleNombreChange(e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]"
                   placeholder="Ej: Ministerio de Economía" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#1B2A4A] mb-1.5">Subdominio</label>
+                <input value={form.slug} onChange={e => handleSlugChange(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#2B6CB0]"
+                  placeholder="ej-ministerio-economia" />
+                <p className="text-xs text-gray-400 mt-1">
+                  {form.slug || '—'}.{ROOT_DOMAIN}
+                </p>
               </div>
 
               <div>
