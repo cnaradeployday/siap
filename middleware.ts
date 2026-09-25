@@ -1,21 +1,11 @@
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
-import { getCookieDomain } from '@/lib/root-domain'
-
-const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.toLowerCase()
-
-// Extrae el slug de organización del subdominio (ej: "corrientes" de corrientes.tudominio.com)
-function getOrgSlugFromHost(host: string | null): string | null {
-  if (!ROOT_DOMAIN || !host) return null
-  const hostname = host.split(':')[0].toLowerCase()
-  if (hostname === ROOT_DOMAIN || hostname === `www.${ROOT_DOMAIN}`) return null
-  if (!hostname.endsWith(`.${ROOT_DOMAIN}`)) return null
-  return hostname.slice(0, -(ROOT_DOMAIN.length + 1))
-}
+import { ROOT_DOMAIN, getCookieDomain } from '@/lib/root-domain'
+import { getOrgSlugFromHost } from '@/lib/org-slug-from-host'
 
 async function resolveOrgIdFromSubdomain(request: NextRequest): Promise<string | null> {
-  const orgSlug = getOrgSlugFromHost(request.headers.get('host'))
+  const orgSlug = getOrgSlugFromHost(request.headers.get('host'), ROOT_DOMAIN)
   if (!orgSlug) return null
 
   const supabaseAdmin = createClient(
